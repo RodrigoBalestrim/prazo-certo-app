@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(132 18) scale(0.742)">
+    <circle cx="512" cy="512" r="496" fill="#174D3B"/>
+    <circle cx="512" cy="512" r="418" fill="#F7F3E8"/>
+    <circle cx="512" cy="512" r="374" fill="none" stroke="#2A9167" stroke-width="18"/>
+    <circle cx="512" cy="512" r="250" fill="#174D3B"/>
+    <circle cx="512" cy="512" r="205" fill="#F7F3E8"/>
+    <circle cx="512" cy="512" r="170" fill="#E4F2EB"/>
+    <circle cx="163" cy="512" r="28" fill="#E5AC4F"/>
+    <circle cx="861" cy="512" r="28" fill="#E5AC4F"/>
+    <path d="M438 376H586" stroke="#174D3B" stroke-width="38" stroke-linecap="round"/>
+    <path d="M438 648H586" stroke="#174D3B" stroke-width="38" stroke-linecap="round"/>
+    <path d="M460 398C460 461 489 481 512 512C535 481 564 461 564 398" stroke="#174D3B" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M460 626C460 563 489 543 512 512C535 543 564 563 564 626" stroke="#174D3B" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M414 576L474 628L616 458" stroke="#2A9167" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="512" y="882" text-anchor="middle" fill="#174D3B" font-family="Arial Black, Arial, sans-serif" font-size="92" font-weight="900" letter-spacing="1">PRAZO CERTO</text>
+</svg>

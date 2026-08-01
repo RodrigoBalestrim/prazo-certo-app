@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "Prazo Certo",
+    "slug": "prazo-certo",
+    "version": "1.0.0",
+    "icon": "./assets/seal.png",
+    "orientation": "portrait",
+    "scheme": "prazocerto",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-web-browser",
+        {
+          "experimentalLauncherActivity": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permita que o Prazo Certo use a câmera para ler códigos de barras."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/seal.png",
+          "imageWidth": 210,
+          "resizeMode": "contain",
+          "backgroundColor": "#174D3B",
+          "dark": {
+            "image": "./assets/seal.png",
+            "backgroundColor": "#174D3B"
+          }
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.prazocerto.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/seal.png",
+        "backgroundColor": "#174D3B"
+      },
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.prazocerto.app",
+      "supportsTablet": true
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "aa1f7a2b-2d6d-44ec-9b29-93e2a97667e0"
+      }
+    },
+    "owner": "wbalestrim"
+  }
+}
