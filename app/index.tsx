@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Modal,
   Pressable,
   SafeAreaView,
@@ -669,6 +670,16 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {Platform.OS === "web" ? (
+          <Pressable
+            accessibilityRole="link"
+            style={styles.portfolioBackMain}
+            onPress={() => Linking.openURL("https://portfolio-3d-eight-nu.vercel.app/#projetos")}
+          >
+            <Text style={styles.portfolioBackMainText}>← VOLTAR AO PORTFÓLIO</Text>
+          </Pressable>
+        ) : null}
+
         <View style={styles.actions}>
           <Pressable style={styles.scanButton} onPress={openScanner}>
             <View style={styles.scanIconWrap}><BarcodeIcon size={25} /></View>
@@ -1137,6 +1148,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F4F6F2" },
   hero: { backgroundColor: "#174D3B", paddingBottom: 38, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
   header: { paddingHorizontal: 22, paddingTop: 44, paddingBottom: 14 },
+  portfolioBackMain: { alignSelf: "center", minHeight: 34, borderRadius: 10, borderWidth: 1, borderColor: "#BCE5CE", backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", marginBottom: 12, paddingHorizontal: 14 },
+  portfolioBackMainText: { color: "#E8F7EF", fontSize: 10, fontWeight: "900", letterSpacing: 0.35 },
   brandBlock: { width: "100%" },
   brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   heroMessage: { position: "absolute", left: 62, right: 62, textAlign: "center", fontSize: 24, lineHeight: 32, color: "#FFFFFF", fontWeight: "800" },
