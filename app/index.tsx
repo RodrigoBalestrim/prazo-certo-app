@@ -129,7 +129,9 @@ export default function HomeScreen() {
     setLoading(true);
     (async () => {
       if (session.user.id === "demo-user") {
-        const demoProducts = await loadProducts("demo-user/personal");
+        const storedDemoProducts = await loadProducts("demo-user/personal");
+        const demoProducts = await buildTestProducts(storedDemoProducts);
+        await saveProducts(demoProducts, "demo-user/personal");
         if (active) setProducts(demoProducts);
         if (active) setLoading(false);
         return;
@@ -511,7 +513,7 @@ export default function HomeScreen() {
     }
   }
 
-  async function addTestProducts() {
+  async function buildTestProducts(currentProducts: Product[]) {
     const samples: Array<{
       name: string;
       barcode: string;
@@ -525,12 +527,19 @@ export default function HomeScreen() {
       { name: "Molho pesto - teste", barcode: "8076809513753", category: "Frios/PAS", quantity: 2, offsetDays: 0 },
       { name: "Biscoito recheado - teste", barcode: "7622210449283", category: "Mercearia", quantity: 4, offsetDays: -1 },
     ];
-    const baseProducts = products.filter((item) => !item.name.endsWith(" - teste"));
+    const baseProducts = currentProducts.filter((item) => !item.name.endsWith(" - teste"));
+    const previousTestProducts = currentProducts.filter((item) => item.name.endsWith(" - teste"));
     const newProducts: Product[] = await Promise.all(
       samples.map(async (sample, index) => {
         const expiryDate = new Date();
+        expiryDate.setHours(12, 0, 0, 0);
         expiryDate.setDate(expiryDate.getDate() + sample.offsetDays);
-        const found = await lookupProduct(sample.barcode);
+        const previousProduct = previousTestProducts.find(
+          (product) => product.barcode === sample.barcode,
+        );
+        const found = previousProduct?.imageUrl
+          ? { name: previousProduct.name.replace(/ - teste$/, ""), imageUrl: previousProduct.imageUrl }
+          : await lookupProduct(sample.barcode);
         return {
           id: `test-${Date.now()}-${index}`,
           name: found?.name ? `${found.name} - teste` : sample.name,
@@ -545,7 +554,12 @@ export default function HomeScreen() {
       }),
     );
 
-    await persist([...baseProducts, ...newProducts]);
+    return [...baseProducts, ...newProducts];
+  }
+
+  async function addTestProducts() {
+    const nextProducts = await buildTestProducts(products);
+    await persist(nextProducts);
     Alert.alert("Produtos adicionados", "Cinco produtos com fotos e datas próximas foram cadastrados para testar o PDF.");
   }
 
