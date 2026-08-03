@@ -6,7 +6,7 @@ e ajudar mercados, empresas e usuários domésticos a agir antes do vencimento.
 ## Demonstração web
 
 - **Acesse o aplicativo:** [prazo-certo.expo.app](https://prazo-certo.expo.app)
-- Na tela inicial, selecione **Ver demonstração** para conhecer os recursos sem criar uma conta.
+- Na tela inicial, selecione **Entrar para testar** para conhecer os recursos sem criar uma conta.
 
 ## Principais recursos
 
