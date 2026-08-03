@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   SafeAreaView,
@@ -112,6 +113,15 @@ export function AuthScreen({ onDemo }: Props) {
         style={styles.page}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        {Platform.OS === "web" ? (
+          <Pressable
+            accessibilityRole="link"
+            style={styles.portfolioBack}
+            onPress={() => Linking.openURL("https://portfolio-3d-eight-nu.vercel.app/#projetos")}
+          >
+            <Text style={styles.portfolioBackText}>← VOLTAR AO PORTFÓLIO</Text>
+          </Pressable>
+        ) : null}
         <View style={styles.brand}>
           <Image source={require("../../assets/seal.png")} style={styles.logo} />
           <Text style={styles.title}>PRAZO <Text style={styles.titleLight}>CERTO</Text></Text>
@@ -192,6 +202,8 @@ export function AuthScreen({ onDemo }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#174D3B" },
   page: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
+  portfolioBack: { alignSelf: "center", minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: "#BCE5CE", backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", marginBottom: 18, paddingHorizontal: 16 },
+  portfolioBackText: { color: "#E8F7EF", fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
   brand: { alignItems: "center", marginBottom: 25 },
   logo: { width: 105, height: 105, resizeMode: "contain", marginBottom: 7 },
   title: { color: "#FFF", fontSize: 27, fontWeight: "900", letterSpacing: 1 },
