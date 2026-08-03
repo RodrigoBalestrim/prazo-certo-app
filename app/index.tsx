@@ -514,19 +514,36 @@ export default function HomeScreen() {
   }
 
   async function buildTestProducts(currentProducts: Product[]) {
-    const samples: Array<{
+    const productPool: Array<{
       name: string;
       barcode: string;
       category: ProductCategory;
       quantity: number;
-      offsetDays: number;
+      imageUrl: string;
     }> = [
-      { name: "Leite condensado - teste", barcode: "7891000100103", category: "Mercearia", quantity: 2, offsetDays: 1 },
-      { name: "Shampoo - teste", barcode: "8001090662231", category: "Bazar", quantity: 3, offsetDays: 3 },
-      { name: "Creme de avelã - teste", barcode: "3017620422003", category: "Saudáveis", quantity: 1, offsetDays: 7 },
-      { name: "Molho pesto - teste", barcode: "8076809513753", category: "Frios/PAS", quantity: 2, offsetDays: 0 },
-      { name: "Biscoito recheado - teste", barcode: "7622210449283", category: "Mercearia", quantity: 4, offsetDays: -1 },
+      { name: "Leite condensado - teste", barcode: "7891000100103", category: "Mercearia", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/100/010/0103/front_pt.34.200.jpg" },
+      { name: "Creme de avelã - teste", barcode: "3017620422003", category: "Saudáveis", quantity: 1, imageUrl: "https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.879.200.jpg" },
+      { name: "Molho pesto - teste", barcode: "8076809513753", category: "Frios/PAS", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/807/680/951/3753/front_en.347.200.jpg" },
+      { name: "Biscoito recheado - teste", barcode: "7622210449283", category: "Mercearia", quantity: 4, imageUrl: "https://images.openfoodfacts.org/images/products/762/221/044/9283/front_en.605.200.jpg" },
+      { name: "Refrigerante Coca-Cola - teste", barcode: "7894900011517", category: "Mercearia", quantity: 3, imageUrl: "https://images.openfoodfacts.org/images/products/789/490/001/1517/front_pt.13.200.jpg" },
+      { name: "H2O Limoneto - teste", barcode: "7892840812850", category: "Saudáveis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/284/081/2850/front_pt.25.200.jpg" },
+      { name: "Leite integral - teste", barcode: "7891025101604", category: "Frios/PAS", quantity: 5, imageUrl: "https://images.openfoodfacts.org/images/products/789/102/510/1604/front_pt.4.200.jpg" },
+      { name: "Chá Matte Leão - teste", barcode: "7891098038456", category: "Saudáveis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/109/803/8456/front_pt.17.200.jpg" },
+      { name: "Soda Limonada - teste", barcode: "7891991000833", category: "Mercearia", quantity: 4, imageUrl: "https://images.openfoodfacts.org/images/products/789/199/100/0833/front_pt.20.200.jpg" },
     ];
+    const shuffledProducts = [...productPool];
+    for (let index = shuffledProducts.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [shuffledProducts[index], shuffledProducts[randomIndex]] = [
+        shuffledProducts[randomIndex],
+        shuffledProducts[index],
+      ];
+    }
+    const dateOffsets = [-1, 0, 1, 3, 7];
+    const samples = shuffledProducts.slice(0, 5).map((product, index) => ({
+      ...product,
+      offsetDays: dateOffsets[index],
+    }));
     const baseProducts = currentProducts.filter((item) => !item.name.endsWith(" - teste"));
     const previousTestProducts = currentProducts.filter((item) => item.name.endsWith(" - teste"));
     const newProducts: Product[] = await Promise.all(
@@ -543,7 +560,7 @@ export default function HomeScreen() {
         return {
           id: `test-${Date.now()}-${index}`,
           name: found?.name ? `${found.name} - teste` : sample.name,
-          imageUrl: found?.imageUrl || undefined,
+          imageUrl: found?.imageUrl || sample.imageUrl,
           barcode: sample.barcode,
           category: sample.category,
           quantity: sample.quantity,
