@@ -3,6 +3,11 @@
 Aplicativo mobile criado para controlar a validade de produtos, reduzir perdas
 e ajudar mercados, empresas e usuários domésticos a agir antes do vencimento.
 
+## Demonstração web
+
+- **Acesse o aplicativo:** [prazo-certo.expo.app](https://prazo-certo.expo.app)
+- Na tela inicial, selecione **Ver demonstração** para conhecer os recursos sem criar uma conta.
+
 ## Principais recursos
 
 - leitura de códigos EAN-8, EAN-13, UPC e Code 128 pela câmera;
