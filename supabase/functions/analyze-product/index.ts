@@ -20,6 +20,9 @@ const GEMINI_IMAGE_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") || "gemini-2.5-fla
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
 const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-4o-mini";
 const REMOVE_BG_API_KEY = Deno.env.get("REMOVE_BG_API_KEY") || "";
+// URL de uma API gratuita auto-hospedada de remoção de fundo
+// (ex.: Background-Removal-API com U²-Net em Hugging Face Spaces/Render).
+const BG_API_URL = Deno.env.get("BG_API_URL") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -96,14 +99,12 @@ function buildSystemPrompt(): string {
     "Você é o assistente de estoque do aplicativo Prazo Certo.",
     "Analise a foto de um produto de supermercado.",
     `Escolha APENAS uma destas categorias: ${CATEGORIES.join(", ")}.`,
-    "A descrição deve ser voltada para ESTOQUE (tipo de embalagem, volume/peso), não para venda.",
     "IMPORTANTE: NUNCA informe data de validade ou quantidade — o usuário preenche esses campos.",
     "Responda apenas JSON válido, sem markdown, no formato:",
     JSON.stringify({
       name: "Nome do produto (ex.: Leite Integral UHT 1L)",
       brand: "Marca ou null se não visível",
       category: "Uma das categorias listadas",
-      description: "Descrição de estoque em português",
       packagingType: "Tipo de embalagem (ex.: Longa vida, Saco plástico 5kg)",
       matches: [{ name: "Nome do produto parecido já cadastrado", similarity: 98 }],
     }),
@@ -267,7 +268,6 @@ async function analyzeWithGemini(
             name: { type: "STRING" },
             brand: { type: "STRING" },
             category: { type: "STRING" },
-            description: { type: "STRING" },
             packagingType: { type: "STRING" },
             matches: {
               type: "ARRAY",
@@ -280,7 +280,7 @@ async function analyzeWithGemini(
               },
             },
           },
-          required: ["name", "brand", "category", "description", "packagingType", "matches"],
+          required: ["name", "brand", "category", "packagingType", "matches"],
         },
       },
     }),
@@ -367,9 +367,35 @@ async function removeBackgroundWithGemini(image: ImageSource): Promise<Uint8Arra
   }
 }
 
+async function removeBackgroundWithSelfHosted(image: ImageSource): Promise<Uint8Array | null> {
+  if (!BG_API_URL) return null;
+  try {
+    const form = new FormData();
+    form.append(
+      "file",
+      new Blob([image.bytes], { type: image.mime }),
+      "product.jpg",
+    );
+    form.append("visualizar", "false");
+    const response = await fetch(`${BG_API_URL.replace(/\/$/, "")}/remover-fundo/`, {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength === 0) return null;
+    return new Uint8Array(buffer);
+  } catch {
+    return null;
+  }
+}
+
 async function removeBackground(image: ImageSource): Promise<Uint8Array | null> {
-  // remove.bg é o método mais confiável quando há chave; o Gemini (modelo de
-  // imagem) é usado como alternativa quando a conta possui acesso ao modelo.
+  // 1) API gratuita auto-hospedada (U²-Net) — sem custo e sem limites
+  const selfHosted = await removeBackgroundWithSelfHosted(image);
+  if (selfHosted) return selfHosted;
+
+  // 2) remove.bg quando houver chave
   if (REMOVE_BG_API_KEY) {
     try {
       const form = new FormData();
