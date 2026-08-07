@@ -1,0 +1,266 @@
+Melhorias Futuras — Prazo Certo App + IA
+
+1. Remoção automática de fundo das imagens
+
+Objetivo:
+
+Padronizar todas as fotos dos produtos deixando apenas o produto visível.
+
+Funcionamento:
+
+Foto atual do produto
+        ↓
+IA identifica o produto
+        ↓
+Remove o fundo
+        ↓
+Gera imagem transparente
+        ↓
+Salva no cadastro
+
+Criar:
+
+foto_original
+foto_sem_fundo
+
+Aplicar:
+
+nas fotos antigas do banco
+nas novas fotos cadastradas
+
+2. Cadastro inteligente por foto
+
+Objetivo:
+
+Cadastrar produtos sem precisar digitar todas as informações.
+
+Quando o produto não existir:
+
+Leitor de código de barras
+          ↓
+Produto não encontrado
+          ↓
+Abrir câmera
+          ↓
+Foto do produto
+          ↓
+IA analisa
+          ↓
+Cria cadastro automático
+
+A IA deve gerar:
+
+Nome do produto
+Marca
+Categoria
+Descrição
+Tipo de embalagem
+
+3. Busca automática antes de criar produto
+
+Antes de usar IA:
+
+Código de barras
+        ↓
+Consulta banco
+        ↓
+Produto existe?
+
+Se existir:
+
+Carregar automaticamente:
+
+Nome
+Descrição
+Categoria
+Foto sem fundo
+
+Evitar produtos duplicados.
+
+4. Leitor de código de barras inteligente
+
+Fluxo:
+
+Usuário escaneia:
+
+Código de barras
+        ↓
+Pesquisa banco
+
+Produto encontrado:
+
+Carrega cadastro existente
+
+Produto não encontrado:
+
+Inicia cadastro por IA
+
+5. Descrição automática dos produtos
+
+Quando tirar foto:
+
+A IA deve criar uma descrição de estoque.
+
+Exemplo:
+
+Entrada:
+
+Foto de produto.
+
+Saída:
+
+Nome:
+Leite Integral UHT 1L
+
+Categoria:
+Laticínios
+
+Descrição:
+Leite integral UHT em embalagem longa vida de 1 litro.
+
+A descrição deve ser voltada para estoque, não para venda.
+
+6. Validade preenchida pelo usuário
+
+A IA NÃO deve informar validade.
+
+O usuário deverá selecionar:
+
+📅 Data de validade
+
+Usar calendário.
+
+Exemplo:
+
+Produto:
+Arroz 5kg
+
+Validade:
+📅 10/12/2026
+
+Quantidade:
+50
+
+7. Entrada de estoque simplificada
+
+Depois do produto identificado:
+
+Usuário informa somente:
+
+Data de validade
+Quantidade
+
+O restante vem automático.
+
+8. Comparação com produtos cadastrados
+
+Criar inteligência para comparar:
+
+Nova foto:
+
+Produto fotografado
+
+Banco:
+
+Produtos existentes
+
+Resultado:
+
+Produto encontrado:
+98% de compatibilidade
+
+Usar cadastro existente?
+
+Evitar duplicidade.
+
+9. Auditoria do sistema
+
+Criar histórico das ações.
+
+Registrar:
+
+usuário
+data
+ação realizada
+produto alterado
+informação antiga
+informação nova
+
+Exemplo:
+
+Usuário:
+João
+
+Alterou quantidade:
+
+Antes:
+100 unidades
+
+Depois:
+80 unidades
+
+Data:
+04/08/2026
+
+10. Controle de permissões
+
+Criar níveis:
+
+Administrador
+
+Pode:
+
+gerenciar usuários
+excluir produtos
+alterar configurações
+
+Gerente
+
+Pode:
+
+visualizar estoque
+corrigir produtos
+
+Estoquista
+
+Pode:
+
+cadastrar entrada
+informar validade
+atualizar quantidade
+
+Visualizador
+
+Somente consulta.
+
+11. Histórico de imagens
+
+Guardar:
+
+Foto original
+Foto processada pela IA
+Data do processamento
+Usuário responsável
+
+12. Preparação para inventário inteligente
+
+Futuro:
+
+Usar câmera para:
+
+identificar produtos na prateleira
+comparar estoque físico com sistema
+encontrar produtos próximos do vencimento
+
+Resultado esperado
+
+Transformar o Prazo Certo em:
+
+✅ Cadastro automático por foto
+✅ Leitura de código de barras
+✅ Fotos profissionais sem fundo
+✅ Descrição criada por IA
+✅ Menos digitação
+✅ Menos erros humanos
+✅ Histórico completo
+✅ Controle profissional de estoque

@@ -1,4 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import type { Session } from "@supabase/supabase-js";
@@ -10,26 +12,32 @@ import {
   Image,
   Linking,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { dateToIso, daysUntil, expiryLabel, formatBrazilianDate, maskBrazilianDate, parseBrazilianDate } from "@/date";
-import { cancelNotifications, prepareNotifications, scheduleExpiryNotifications } from "@/notifications";
+import { cancelNotifications, NotificationPreferences, prepareNotifications, scheduleExpiryNotifications } from "@/notifications";
 import { lookupProduct } from "@/productLookup";
+import { contributeCatalogProduct } from "@/productCatalog";
 import { loadProducts, saveProducts } from "@/storage";
 import { PRODUCT_CATEGORIES, Product, ProductCategory } from "@/types";
 import { BarcodeIcon } from "@/components/BarcodeIcon";
 import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
-import { loadCloudProducts, replaceCloudProducts } from "@/cloudStorage";
-import { CompanyMembership, loadMyCompany } from "@/company";
+import { HistoryScreen } from "@/components/HistoryScreen";
+import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, replaceCloudProducts } from "@/cloudStorage";
+import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
+import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { supabase } from "@/supabase";
+import { uploadAvatar } from "@/avatar";
 
 export default function HomeScreen() {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,18 +55,43 @@ export default function HomeScreen() {
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [category, setCategory] = useState<ProductCategory>("Mercearia");
+  const [notes, setNotes] = useState("");
+  const [brand, setBrand] = useState("");
+  const [description, setDescription] = useState("");
+  const [packagingType, setPackagingType] = useState("");
+  const [cutoutUrl, setCutoutUrl] = useState("");
+  const [photoOriginal, setPhotoOriginal] = useState("");
+  const [aiProcessing, setAiProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [removingSelected, setRemovingSelected] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [actionProduct, setActionProduct] = useState<Product | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [companyManagerOpen, setCompanyManagerOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [companySetupOpen, setCompanySetupOpen] = useState(false);
   const [companySetupMode, setCompanySetupMode] = useState<"create" | "join">("create");
+  const [menuScreen, setMenuScreen] = useState<"profile" | "notifications" | "reports" | "help" | null>(null);
+  const [profileNameDraft, setProfileNameDraft] = useState("");
+  const [profilePhotoDraft, setProfilePhotoDraft] = useState("");
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
+    enabled: true,
+    advance: true,
+    sevenDays: true,
+    oneDay: true,
+    expiryDay: true,
+  });
   const [permission, requestPermission] = useCameraPermissions();
   const isDemo = session?.user.id === "demo-user";
+  const role = company?.role;
+  const rolePermissions = {
+    canAdd: canAddProducts(role),
+    canDelete: canDeleteProducts(role),
+    canManage: canManageCompany(role),
+  };
 
   const profileName =
     session?.user.user_metadata?.full_name ||
@@ -69,6 +102,27 @@ export default function HomeScreen() {
     session?.user.user_metadata?.avatar_url ||
     session?.user.user_metadata?.picture ||
     "";
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+    AsyncStorage.getItem(`@prazo-certo/notifications/${session.user.id}`)
+      .then((raw) => {
+        if (raw) setNotificationPreferences(JSON.parse(raw) as NotificationPreferences);
+      })
+      .catch(() => undefined);
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    if (!session?.user.id || !session.user.email || isDemo) return;
+    const key = `@prazo-certo/pending-avatar/${session.user.email.toLowerCase()}`;
+    AsyncStorage.getItem(key)
+      .then(async (pendingPhoto) => {
+        if (!pendingPhoto) return;
+        await uploadAvatar(session.user.id, pendingPhoto);
+        await AsyncStorage.removeItem(key);
+      })
+      .catch(() => undefined);
+  }, [session?.user.id, session?.user.email, isDemo]);
 
   useEffect(() => {
     prepareNotifications().catch(() => undefined);
@@ -105,8 +159,8 @@ export default function HomeScreen() {
         if (active) {
           setCompany(null);
           Alert.alert(
-            "Configuração da empresa pendente",
-            "Atualize o banco de dados do Supabase para ativar os grupos de empresa.",
+            "Configuração do grupo pendente",
+            "Atualize o banco de dados do Supabase para ativar os grupos de lista.",
           );
         }
       })
@@ -209,7 +263,7 @@ export default function HomeScreen() {
   }, [session?.user.id, company?.id, isDemo]);
 
   const sorted = useMemo(
-    () => [...products].sort((a, b) => a.expiresAt.localeCompare(b.expiresAt)),
+    () => [...products].filter((product) => !product.archived).sort((a, b) => a.expiresAt.localeCompare(b.expiresAt)),
     [products],
   );
   const stats = useMemo(() => {
@@ -220,6 +274,121 @@ export default function HomeScreen() {
     }).length;
     return { expired, expiring, ok: products.length - expired - expiring };
   }, [products]);
+  const totalUnits = useMemo(
+    () => products.reduce((total, product) => total + product.quantity, 0),
+    [products],
+  );
+
+  function openMenuScreen(screen: "profile" | "notifications" | "reports" | "help") {
+    setProfileMenuOpen(false);
+    if (screen === "profile") {
+      setProfileNameDraft(profileName);
+      setProfilePhotoDraft(profilePhoto);
+    }
+    setMenuScreen(screen);
+  }
+
+  async function chooseProfilePhoto() {
+    if (Platform.OS !== "web") {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setProfilePhotoDraft(
+        asset.base64
+          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+          : asset.uri,
+      );
+    }
+  }
+
+  async function chooseProductPhoto() {
+    if (Platform.OS !== "web") {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setImageUrl(
+        asset.base64
+          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+          : asset.uri,
+      );
+      setPhotoOriginal(
+        asset.base64
+          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+          : asset.uri,
+      );
+      setCutoutUrl("");
+    }
+  }
+
+  async function saveProfile() {
+    let avatarUrl = profilePhotoDraft.trim();
+    if (
+      !isDemo &&
+      session?.user.id &&
+      /^(data:|file:|blob:)/.test(avatarUrl)
+    ) {
+      try {
+        avatarUrl = await uploadAvatar(session.user.id, avatarUrl);
+      } catch (error) {
+        Alert.alert(
+          "Não foi possível enviar a foto",
+          error instanceof Error ? error.message : "Tente novamente.",
+        );
+        return;
+      }
+    }
+    const metadata = {
+      ...session?.user.user_metadata,
+      full_name: profileName,
+      avatar_url: avatarUrl,
+    };
+    if (isDemo && session) {
+      setSession({ ...session, user: { ...session.user, user_metadata: metadata } });
+    } else {
+      const { error } = await supabase.auth.updateUser({ data: metadata });
+      if (error) {
+        Alert.alert("Não foi possível salvar", error.message);
+        return;
+      }
+    }
+    setMenuScreen(null);
+    Alert.alert("Perfil atualizado", "Suas informações foram salvas.");
+  }
+
+  async function saveNotificationPreferences() {
+    if (!session?.user.id) return;
+    await AsyncStorage.setItem(
+      `@prazo-certo/notifications/${session.user.id}`,
+      JSON.stringify(notificationPreferences),
+    );
+    setMenuScreen(null);
+    Alert.alert(
+      "Notificações atualizadas",
+      "As preferências serão usadas nos próximos produtos cadastrados.",
+    );
+  }
 
   async function persist(next: Product[]) {
     setProducts(next);
@@ -236,6 +405,24 @@ export default function HomeScreen() {
     }
   }
 
+  async function archiveExpiredProducts() {
+    const now = new Date();
+    const next = products.map((product) => {
+      if (product.archived) return product;
+      const expiresAt = new Date(`${product.expiresAt}T00:00:00`);
+      const daysAfterExpiry = Math.floor((now.getTime() - expiresAt.getTime()) / 86400000);
+      return daysAfterExpiry > 4
+        ? { ...product, archived: true, archivedAt: now.toISOString() }
+        : product;
+    });
+    if (next.some((product, index) => product !== products[index])) await persist(next);
+  }
+
+  useEffect(() => {
+    if (!products.length || loading) return;
+    archiveExpiredProducts().catch(() => undefined);
+  }, [products.length, loading]);
+
   function resetForm() {
     setName("");
     setImageUrl("");
@@ -243,6 +430,12 @@ export default function HomeScreen() {
     setExpiry("");
     setQuantity("1");
     setCategory("Mercearia");
+    setNotes("");
+    setBrand("");
+    setDescription("");
+    setPackagingType("");
+    setCutoutUrl("");
+    setPhotoOriginal("");
     setEditingId(null);
   }
 
@@ -260,18 +453,185 @@ export default function HomeScreen() {
   async function onBarcodeScanned(value: string) {
     setScannerOpen(false);
     setBarcode(value);
+
+    const existing = products.find((item) => item.barcode === value && !item.archived);
+    if (existing) {
+      Alert.alert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Editar", onPress: () => editProduct(existing) },
+      ]);
+      return;
+    }
+
     setFormOpen(true);
     setLookingUp(true);
     const foundProduct = await lookupProduct(value);
     if (foundProduct?.name) setName(foundProduct.name);
     if (foundProduct?.imageUrl) setImageUrl(foundProduct.imageUrl);
+    if (foundProduct?.category) setCategory(foundProduct.category);
+
     if (!foundProduct?.name && !foundProduct?.imageUrl) {
+      setFormOpen(false);
       Alert.alert(
         "Produto não encontrado",
-        "O código foi lido, mas o produto não está na base. Digite o nome para continuar.",
+        "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
+        [
+          { text: "Digitar manualmente", style: "cancel", onPress: () => setFormOpen(true) },
+          { text: "Cadastrar com IA", onPress: () => startAiPhoto(value) },
+        ],
       );
     }
     setLookingUp(false);
+  }
+
+  async function startAiPhoto(code?: string) {
+    if (Platform.OS === "web") {
+      await choosePhotoForAi(code);
+      return;
+    }
+    Alert.alert("Cadastro por IA", "Tire uma foto do produto ou escolha da galeria.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Galeria", onPress: () => choosePhotoForAi(code) },
+      { text: "Tirar foto", onPress: () => takePhotoForAi(code) },
+    ]);
+  }
+
+  async function choosePhotoForAi(code?: string) {
+    if (Platform.OS !== "web") {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permissão necessária", "Permita o acesso às fotos para usar o cadastro por IA.");
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const uri = asset.base64
+      ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+      : asset.uri;
+    await analyzePhoto(uri, code);
+  }
+
+  async function takePhotoForAi(code?: string) {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Câmera necessária", "Permita o acesso à câmera para fotografar o produto.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const uri = asset.base64
+      ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+      : asset.uri;
+    await analyzePhoto(uri, code);
+  }
+
+  async function analyzePhoto(uri: string, code?: string) {
+    if (aiProcessing) return;
+    setAiProcessing(true);
+    try {
+      const result = await analyzeProductWithAi({
+        barcode: code || barcode,
+        imageUri: uri,
+        existingProductNames: existingProductNames(products),
+      });
+      if (result.name) setName(result.name);
+      if (result.brand) setBrand(result.brand);
+      if (result.category) setCategory(result.category);
+      if (result.description) setDescription(result.description);
+      if (result.packagingType) setPackagingType(result.packagingType);
+      if (result.originalUrl) setPhotoOriginal(result.originalUrl);
+      if (result.cutoutUrl) {
+        setCutoutUrl(result.cutoutUrl);
+        setImageUrl(result.cutoutUrl);
+      } else if (result.originalUrl) {
+        setImageUrl(result.originalUrl);
+      } else if (!imageUrl) {
+        setImageUrl(uri);
+      }
+
+      const topMatch = result.matches?.[0];
+      if (topMatch && topMatch.similarity >= 85) {
+        const existing = products.find((item) => item.name === topMatch.name && !item.archived);
+        Alert.alert(
+          "Produto parecido encontrado",
+          `"${topMatch.name}" tem ${topMatch.similarity}% de compatibilidade com o que você fotografou. Usar o cadastro existente?`,
+          [
+            { text: "Continuar novo", style: "cancel" },
+            {
+              text: "Usar existente",
+              onPress: () => {
+                if (existing) editProduct(existing);
+              },
+            },
+          ],
+        );
+      }
+      setFormOpen(true);
+    } catch (error) {
+      Alert.alert(
+        "Assistente de IA indisponível",
+        error instanceof Error ? error.message : "Verifique a configuração da Edge Function e tente novamente.",
+      );
+    } finally {
+      setAiProcessing(false);
+    }
+  }
+
+  async function processPhotoWithAi(product: Product) {
+    setActionProduct(null);
+    setAiProcessing(true);
+    try {
+      const result = await analyzeProductWithAi({
+        barcode: product.barcode,
+        imageUri: product.photoOriginalUrl || product.imageUrl || "",
+        existingProductNames: existingProductNames(products),
+      });
+      if (!result.cutoutUrl && !result.name) {
+        Alert.alert("IA indisponível", "Não foi possível processar a foto agora.");
+        return;
+      }
+      const updated: Product = {
+        ...product,
+        name: result.name || product.name,
+        brand: result.brand || product.brand,
+        category: result.category || product.category,
+        description: result.description || product.description,
+        packagingType: result.packagingType || product.packagingType,
+        photoOriginalUrl: result.originalUrl || product.photoOriginalUrl || product.imageUrl,
+        photoCutoutUrl: result.cutoutUrl || product.photoCutoutUrl,
+        imageUrl: result.cutoutUrl || result.originalUrl || product.imageUrl,
+      };
+      await persist(products.map((item) => (item.id === product.id ? updated : item)));
+      await recordImageHistory({
+        productId: product.id,
+        originalUrl: updated.photoOriginalUrl,
+        cutoutUrl: updated.photoCutoutUrl,
+      });
+
+      Alert.alert(
+        result.cutoutUrl ? "Foto processada" : "Produto atualizado",
+        result.cutoutUrl
+          ? "O fundo foi removido e a foto sem fundo foi salva no cadastro."
+          : "Os dados do produto foram atualizados pela IA.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Assistente de IA indisponível",
+        error instanceof Error ? error.message : "Tente novamente.",
+      );
+    } finally {
+      setAiProcessing(false);
+    }
   }
 
   async function saveProduct() {
@@ -296,15 +656,49 @@ export default function HomeScreen() {
       : undefined;
     if (existing) await cancelNotifications(existing.notificationIds);
 
-    const notificationIds = await scheduleExpiryNotifications(name.trim(), expiresAt, category);
+    const hasCutout = Boolean(cutoutUrl);
+    let savedImageUrl = imageUrl || undefined;
+    if (!isDemo && session?.user.id && barcode.trim() && !hasCutout) {
+      try {
+        savedImageUrl = await contributeCatalogProduct(
+          session.user.id,
+          barcode,
+          name,
+          savedImageUrl,
+          category,
+        );
+      } catch {
+        Alert.alert(
+          "Produto salvo sem compartilhar",
+          "Não foi possível atualizar o catálogo compartilhado agora.",
+        );
+      }
+    }
+
+    const notificationIds = await scheduleExpiryNotifications(
+      name.trim(),
+      expiresAt,
+      category,
+      notificationPreferences,
+    );
     const product: Product = {
       id: existing?.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name: name.trim(),
-      imageUrl: imageUrl || undefined,
+      imageUrl: hasCutout ? cutoutUrl : (savedImageUrl || undefined),
+      photoOriginalUrl: hasCutout
+        ? (photoOriginal.trim() || savedImageUrl || undefined)
+        : (savedImageUrl || photoOriginal.trim() || undefined),
+      photoCutoutUrl: hasCutout ? cutoutUrl : (existing?.photoCutoutUrl || undefined),
+      brand: brand.trim() || existing?.brand || undefined,
+      description: description.trim() || existing?.description || undefined,
+      packagingType: packagingType.trim() || existing?.packagingType || undefined,
       category,
       barcode: barcode.trim(),
       expiresAt,
       quantity: numericQuantity,
+      notes: notes.trim() || undefined,
+      archived: existing?.archived || false,
+      archivedAt: existing?.archivedAt,
       createdAt: existing?.createdAt || new Date().toISOString(),
       notificationIds,
     };
@@ -313,6 +707,14 @@ export default function HomeScreen() {
         ? products.map((item) => item.id === existing.id ? product : item)
         : [...products, product],
     );
+
+    if (hasCutout && existing?.photoCutoutUrl !== product.photoCutoutUrl) {
+      await recordImageHistory({
+        productId: product.id,
+        originalUrl: product.photoOriginalUrl,
+        cutoutUrl: product.photoCutoutUrl,
+      });
+    }
     resetForm();
     setFormOpen(false);
   }
@@ -321,11 +723,17 @@ export default function HomeScreen() {
     setActionProduct(null);
     setEditingId(product.id);
     setName(product.name);
-    setImageUrl(product.imageUrl || "");
+    setImageUrl(product.photoCutoutUrl || product.imageUrl || "");
+    setPhotoOriginal(product.photoOriginalUrl || product.imageUrl || "");
+    setCutoutUrl(product.photoCutoutUrl || "");
+    setBrand(product.brand || "");
+    setDescription(product.description || "");
+    setPackagingType(product.packagingType || "");
     setBarcode(product.barcode);
     setExpiry(formatBrazilianDate(product.expiresAt));
     setQuantity(String(product.quantity));
     setCategory(product.category || "Mercearia");
+    setNotes(product.notes || "");
     setFormOpen(true);
   }
 
@@ -335,6 +743,7 @@ export default function HomeScreen() {
 
   async function removeProduct(product: Product) {
     await cancelNotifications(product.notificationIds);
+
     await persist(products.filter((item) => item.id !== product.id));
     setActionProduct(null);
   }
@@ -367,12 +776,34 @@ export default function HomeScreen() {
   }
 
   async function removeSelectedProducts() {
-    const selected = products.filter((product) => selectedIds.has(product.id));
-    await Promise.all(
-      selected.map((product) => cancelNotifications(product.notificationIds)),
+    if (removingSelected) return;
+    Alert.alert(
+      "Remover selecionados",
+      "Deseja realmente remover os itens selecionados?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar remoção",
+          style: "destructive",
+          onPress: async () => {
+            setRemovingSelected(true);
+            try {
+              const selected = products.filter((product) => selectedIds.has(product.id));
+              await Promise.all(
+                selected.map((product) => cancelNotifications(product.notificationIds)),
+              );
+              await persist(products.filter((product) => !selectedIds.has(product.id)));
+              closeSelectionMode();
+              Alert.alert("Remoção concluída", "Os itens selecionados foram removidos.");
+            } catch {
+              Alert.alert("Não foi possível remover", "Tente novamente.");
+            } finally {
+              setRemovingSelected(false);
+            }
+          },
+        },
+      ],
     );
-    await persist(products.filter((product) => !selectedIds.has(product.id)));
-    closeSelectionMode();
   }
 
   function toggleCategorySelection(categoryOption: ProductCategory) {
@@ -452,51 +883,68 @@ export default function HomeScreen() {
       dateStyle: "long",
       timeStyle: "short",
     }).format(new Date());
+    const companyLogo = company?.logoUrl || "";
+    const companyTitle = company?.companyName || company?.name || "Prazo Certo";
+    const groupName = company?.name || "Lista pessoal";
+    const companySector = company?.sector || "Nao informado";
 
     const html = `<!doctype html>
       <html lang="pt-BR">
         <head>
           <meta charset="utf-8">
           <style>
-            @page { margin: 32px; }
+            @page { margin: 32px 32px 44px; }
             * { box-sizing: border-box; }
             body { font-family: Arial, sans-serif; color: #000; margin: 0; font-size: 12px; }
-            .header { background: #FFF; color: #000; padding: 16px 0 12px; border-bottom: 2px solid #000; }
+            .header { display: flex; align-items: center; gap: 14px; background: #FFF; color: #000; padding: 16px 0 12px; border-bottom: 2px solid #000; }
+            .logo { width: 58px; height: 58px; object-fit: contain; border: 1px solid #DDD; border-radius: 10px; padding: 5px; }
             .brand { font-size: 26px; font-weight: 800; margin: 0 0 5px; }
             .subtitle { color: #333; margin: 0; }
-            .meta { display: flex; justify-content: space-between; margin: 22px 2px 12px; color: #333; }
+            .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 18px; margin: 18px 2px 12px; color: #333; }
             table { width: 100%; border-collapse: collapse; }
             th { background: #FFF; color: #000; padding: 11px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
             td { padding: 13px 11px; border-bottom: 1px solid #AAA; vertical-align: middle; }
             td strong { display: block; font-size: 13px; margin-bottom: 4px; }
             td span { color: #333; font-size: 10px; }
             .category { display: block; margin-bottom: 5px; }
-            .barcode { display: block; color: #000; font-family: monospace; font-size: 14px; font-weight: 700; letter-spacing: 1.2px; }
+            .barcode { display: none; }
+            .notes { display: block; margin-top: 5px; }
             .center { text-align: center; }
             .status { display: inline-block; padding: 6px 8px; border: 1px solid #000; border-radius: 5px; color: #000; font-weight: 700; white-space: nowrap; }
             .category-row td { background: #FFF; color: #000; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; border-top: 2px solid #000; border-bottom: 1px solid #000; padding: 9px 11px; }
-            .footer { margin-top: 18px; color: #555; font-size: 9px; text-align: center; }
+            .footer { position: fixed; right: 0; bottom: -22px; color: #555; font-size: 9px; text-align: right; }
           </style>
         </head>
         <body>
           <div class="header">
+            ${companyLogo ? `<img class="logo" src="${escapeHtml(companyLogo)}" />` : ""}
+            <div>
             <p class="brand">Prazo Certo</p>
             <p class="subtitle">Relatório de validade dos produtos selecionados</p>
+            </div>
           </div>
           <div class="meta">
             <span>Gerado em ${escapeHtml(generatedAt)}</span>
+            <span>Empresa: ${escapeHtml(companyTitle)}</span>
+            <span>Grupo: ${escapeHtml(groupName)}</span>
+            <span>Setor responsavel: ${escapeHtml(companySector)}</span>
             <strong>${selected.length} produto${selected.length === 1 ? "" : "s"}</strong>
           </div>
           <table>
             <thead><tr><th>Produto</th><th class="center">Qtd.</th><th>Validade</th><th>Situação</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          <div class="footer">Documento gerado pelo aplicativo Prazo Certo.</div>
+          <div class="footer">Gerado pelo Prazo Certo</div>
         </body>
       </html>`;
 
     try {
       setExportingPdf(true);
+      if (Platform.OS === "web") {
+        await Print.printAsync({ html });
+        Alert.alert("PDF pronto", "Use a janela de impressão do navegador para salvar o PDF.");
+        return;
+      }
       const file = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
@@ -575,11 +1023,7 @@ export default function HomeScreen() {
     return [...baseProducts, ...newProducts];
   }
 
-  async function addTestProducts() {
-    const nextProducts = await buildTestProducts(products);
-    await persist(nextProducts);
-    Alert.alert("Produtos adicionados", "Cinco produtos com fotos e datas próximas foram cadastrados para testar o PDF.");
-  }
+
 
   if (authLoading) {
     return (
@@ -658,15 +1102,30 @@ export default function HomeScreen() {
               <Text style={styles.heroMessage}>
                 PRAZO <Text style={styles.heroAccent}>CERTO</Text>
               </Text>
-              <Image
-                source={require("../assets/seal.png")}
-                style={styles.brandLogo}
-                resizeMode="contain"
-              />
+              <Pressable
+                onPress={() =>
+                  Alert.alert(
+                    "Prazo Certo",
+                    "Aplicativo para controlar a validade de produtos, reduzir perdas e agir antes do vencimento.",
+                  )
+                }
+                accessibilityLabel="Sobre o Prazo Certo"
+              >
+                <Image
+                  source={require("../assets/seal.png")}
+                  style={styles.brandLogo}
+                  resizeMode="contain"
+                />
+              </Pressable>
             </View>
-            <Text style={styles.companyLine} numberOfLines={1}>
-              {company ? `${company.name}  •  Código: ${company.inviteCode}` : "Minha lista pessoal"}
-            </Text>
+            <View style={styles.companyLineRow}>
+              {company?.logoUrl ? (
+                <Image source={{ uri: company.logoUrl }} style={styles.companyLogo} />
+              ) : null}
+              <Text style={styles.companyLine} numberOfLines={1}>
+                {company ? `${company.name}  •  Código: ${company.inviteCode}` : "Minha lista pessoal"}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -681,6 +1140,7 @@ export default function HomeScreen() {
         ) : null}
 
         <View style={styles.actions}>
+          {Platform.OS !== "web" ? (
           <Pressable style={styles.scanButton} onPress={openScanner}>
             <View style={styles.scanIconWrap}><BarcodeIcon size={25} /></View>
             <View style={{ flex: 1 }}>
@@ -689,9 +1149,12 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.actionArrow}>›</Text>
           </Pressable>
-          <Pressable style={styles.addButton} onPress={() => setFormOpen(true)}>
-            <Text style={styles.addText}>＋</Text>
-          </Pressable>
+          ) : null}
+          {rolePermissions.canAdd ? (
+            <Pressable style={styles.addButton} onPress={() => setFormOpen(true)}>
+              <Text style={styles.addText}>＋</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
@@ -702,13 +1165,12 @@ export default function HomeScreen() {
         onRequestClose={() => setProfileMenuOpen(false)}
       >
         <View style={styles.profileMenuBackdrop}>
-          <Pressable
-            style={styles.profileMenuDismiss}
-            onPress={() => setProfileMenuOpen(false)}
-            accessibilityLabel="Fechar menu"
-          />
           <View style={styles.profileMenu}>
-            <View style={styles.profileMenuHeader}>
+            <Pressable
+              style={styles.profileMenuHeader}
+              onPress={() => openMenuScreen("profile")}
+              accessibilityLabel="Abrir meu perfil"
+            >
               {profilePhoto ? (
                 <Image source={{ uri: profilePhoto }} style={styles.profileMenuPhoto} />
               ) : (
@@ -718,11 +1180,15 @@ export default function HomeScreen() {
               )}
               <Text style={styles.profileMenuName}>{profileName}</Text>
               <Text style={styles.profileMenuEmail}>{session.user.email}</Text>
-            </View>
+              <Text style={styles.profileMenuHeaderHint}>Toque para editar o perfil</Text>
+            </Pressable>
             {company ? (
               <>
                 <View style={styles.profileMenuCompany}>
-                  <Text style={styles.profileMenuLabel}>EMPRESA</Text>
+                  <Text style={styles.profileMenuLabel}>GRUPO DE LISTA</Text>
+                  {company.logoUrl ? (
+                    <Image source={{ uri: company.logoUrl }} style={styles.profileCompanyLogo} />
+                  ) : null}
                   <Text style={styles.profileMenuCompanyName}>{company.name}</Text>
                   <Text style={styles.profileMenuCode}>Código para entrar: {company.inviteCode}</Text>
                 </View>
@@ -747,15 +1213,15 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuCode}>Somente você pode ver estes produtos.</Text>
                 </View>
                 <Pressable
-                  style={styles.profileMenuManage}
+                  style={[styles.profileMenuManage, styles.profileMenuCreate]}
                   onPress={() => {
                     setProfileMenuOpen(false);
                     setCompanySetupMode("create");
                     setCompanySetupOpen(true);
                   }}
                 >
-                  <Text style={styles.profileMenuManageText}>Criar empresa</Text>
-                  <Text style={styles.profileMenuManageArrow}>›</Text>
+                  <Text style={[styles.profileMenuManageText, styles.profileMenuCreateText]}>Criar grupo</Text>
+                  <Text style={[styles.profileMenuManageArrow, styles.profileMenuCreateText]}>›</Text>
                 </Pressable>
                 <Pressable
                   style={styles.profileMenuJoin}
@@ -765,11 +1231,66 @@ export default function HomeScreen() {
                     setCompanySetupOpen(true);
                   }}
                 >
-                  <Text style={styles.profileMenuJoinText}>Entrar em grupo de empresa</Text>
+                  <Text style={styles.profileMenuJoinText}>Entrar em um grupo</Text>
                   <Text style={styles.profileMenuManageArrow}>›</Text>
                 </Pressable>
               </>
             )}
+            <View style={styles.profileMenuOptions}>
+              <Pressable
+                style={styles.profileMenuOption}
+                onPress={() => openMenuScreen("profile")}
+              >
+                <View style={styles.profileMenuOptionIcon}>
+                  <Text style={styles.profileMenuOptionIconText}>P</Text>
+                </View>
+                <Text style={styles.profileMenuOptionText}>Meu perfil</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
+              </Pressable>
+              <Pressable
+                style={styles.profileMenuOption}
+                onPress={() => openMenuScreen("notifications")}
+              >
+                <View style={styles.profileMenuOptionIcon}>
+                  <Text style={styles.profileMenuOptionIconText}>N</Text>
+                </View>
+                <Text style={styles.profileMenuOptionText}>Notificações</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
+              </Pressable>
+              <Pressable
+                style={styles.profileMenuOption}
+                onPress={() => {
+                  setProfileMenuOpen(false);
+                  setHistoryOpen(true);
+                }}
+              >
+                <View style={styles.profileMenuOptionIcon}>
+                  <Text style={styles.profileMenuOptionIconText}>H</Text>
+                </View>
+                <Text style={styles.profileMenuOptionText}>Histórico</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
+              </Pressable>
+              <Pressable
+                style={styles.profileMenuOption}
+                onPress={() => openMenuScreen("reports")}
+              >
+                <View style={styles.profileMenuOptionIcon}>
+                  <Text style={styles.profileMenuOptionIconText}>R</Text>
+                </View>
+                <Text style={styles.profileMenuOptionText}>Relatórios</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.profileMenuOption, styles.profileMenuOptionLast]}
+                onPress={() => openMenuScreen("help")}
+              >
+                <View style={styles.profileMenuOptionIcon}>
+                  <Text style={styles.profileMenuOptionIconText}>?</Text>
+                </View>
+                <Text style={styles.profileMenuOptionText}>Ajuda</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
+              </Pressable>
+            </View>
             <Pressable
               style={styles.profileMenuExit}
               onPress={async () => {
@@ -780,6 +1301,202 @@ export default function HomeScreen() {
               <Text style={styles.profileMenuExitText}>Sair da conta</Text>
             </Pressable>
           </View>
+          <Pressable
+            style={styles.profileMenuDismiss}
+            onPress={() => setProfileMenuOpen(false)}
+            accessibilityLabel="Fechar menu"
+          />
+        </View>
+      </Modal>
+
+      <Modal
+        visible={menuScreen !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuScreen(null)}
+      >
+        <View style={styles.menuScreenBackdrop}>
+          <Pressable style={styles.menuScreenDismiss} onPress={() => setMenuScreen(null)} />
+          <View style={styles.menuScreenSheet}>
+            <View style={styles.menuScreenHandle} />
+            <View style={styles.menuScreenHeader}>
+              <View>
+                <Text style={styles.menuScreenEyebrow}>PRAZO CERTO</Text>
+                <Text style={styles.menuScreenTitle}>
+                  {menuScreen === "profile"
+                    ? "Meu perfil"
+                    : menuScreen === "notifications"
+                      ? "Notificações"
+                      : menuScreen === "reports"
+                        ? "Relatórios"
+                        : "Ajuda"}
+                </Text>
+              </View>
+              <Pressable
+                style={styles.menuScreenClose}
+                onPress={() => setMenuScreen(null)}
+                accessibilityLabel="Fechar"
+              >
+                <Text style={styles.menuScreenCloseText}>×</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.menuScreenScroll}
+              contentContainerStyle={styles.menuScreenContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {menuScreen === "profile" ? (
+                <>
+                  <View style={styles.profileEditorPhotoWrap}>
+                    <Pressable onPress={chooseProfilePhoto} accessibilityLabel="Trocar foto do perfil">
+                      {profilePhotoDraft ? (
+                        <Image source={{ uri: profilePhotoDraft }} style={styles.profileEditorPhoto} />
+                      ) : (
+                        <View style={styles.profileEditorFallback}>
+                          <Text style={styles.profileEditorInitial}>
+                            {(profileNameDraft || profileName).charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.profileEditorCameraBadge}>
+                        <Text style={styles.profileEditorCameraText}>+</Text>
+                      </View>
+                    </Pressable>
+                    <Text style={styles.profileEditorName}>{profileName}</Text>
+                  </View>
+                  <View style={styles.profileEmailCard}>
+                    <Text style={styles.profileEmailLabel}>E-MAIL DA CONTA</Text>
+                    <Text style={styles.profileEmailValue}>{session.user.email}</Text>
+                  </View>
+                  <Pressable style={styles.menuPrimaryButton} onPress={saveProfile}>
+                    <Text style={styles.menuPrimaryButtonText}>Salvar foto do perfil</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {menuScreen === "notifications" ? (
+                <>
+                  <Text style={styles.menuScreenDescription}>
+                    Escolha quando o Prazo Certo deve avisar sobre os produtos cadastrados.
+                  </Text>
+                  <View style={styles.settingCard}>
+                    <View style={styles.settingTextWrap}>
+                      <Text style={styles.settingTitle}>Ativar notificações</Text>
+                      <Text style={styles.settingDescription}>Liga ou desliga todos os avisos.</Text>
+                    </View>
+                    <Switch
+                      value={notificationPreferences.enabled}
+                      onValueChange={(enabled) =>
+                        setNotificationPreferences((current) => ({ ...current, enabled }))
+                      }
+                      trackColor={{ false: "#CAD3CE", true: "#8CC7AB" }}
+                      thumbColor={notificationPreferences.enabled ? "#1E7A55" : "#F4F4F4"}
+                    />
+                  </View>
+                  {[
+                    ["advance", "Aviso antecipado", "30 dias antes; 15 dias para Açougue e Frios/PAS."],
+                    ["sevenDays", "7 dias antes", "Uma semana antes do vencimento."],
+                    ["oneDay", "1 dia antes", "Um lembrete no dia anterior."],
+                    ["expiryDay", "No vencimento", "Aviso no próprio dia da validade."],
+                  ].map(([key, title, description]) => (
+                    <View style={styles.settingCard} key={key}>
+                      <View style={styles.settingTextWrap}>
+                        <Text style={styles.settingTitle}>{title}</Text>
+                        <Text style={styles.settingDescription}>{description}</Text>
+                      </View>
+                      <Switch
+                        disabled={!notificationPreferences.enabled}
+                        value={
+                          notificationPreferences.enabled &&
+                          notificationPreferences[key as keyof NotificationPreferences]
+                        }
+                        onValueChange={(value) =>
+                          setNotificationPreferences((current) => ({ ...current, [key]: value }))
+                        }
+                        trackColor={{ false: "#CAD3CE", true: "#8CC7AB" }}
+                        thumbColor="#1E7A55"
+                      />
+                    </View>
+                  ))}
+                  <Pressable style={styles.menuPrimaryButton} onPress={saveNotificationPreferences}>
+                    <Text style={styles.menuPrimaryButtonText}>Salvar preferências</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {menuScreen === "reports" ? (
+                <>
+                  <Text style={styles.menuScreenDescription}>
+                    Visão geral da sua lista atual de produtos.
+                  </Text>
+                  <View style={styles.reportHero}>
+                    <Text style={styles.reportHeroNumber}>{products.length}</Text>
+                    <Text style={styles.reportHeroLabel}>produtos cadastrados</Text>
+                    <Text style={styles.reportHeroUnits}>{totalUnits} unidades no total</Text>
+                  </View>
+                  <View style={styles.reportGrid}>
+                    <View style={[styles.reportCard, styles.reportCardExpired]}>
+                      <Text style={styles.reportCardNumber}>{stats.expired}</Text>
+                      <Text style={styles.reportCardLabel}>Vencidos</Text>
+                    </View>
+                    <View style={[styles.reportCard, styles.reportCardExpiring]}>
+                      <Text style={styles.reportCardNumber}>{stats.expiring}</Text>
+                      <Text style={styles.reportCardLabel}>Próximos</Text>
+                    </View>
+                    <View style={[styles.reportCard, styles.reportCardOk]}>
+                      <Text style={styles.reportCardNumber}>{stats.ok}</Text>
+                      <Text style={styles.reportCardLabel}>Em dia</Text>
+                    </View>
+                  </View>
+                  <View style={styles.reportInsight}>
+                    <Text style={styles.reportInsightTitle}>Ação recomendada</Text>
+                    <Text style={styles.reportInsightText}>
+                      {stats.expired > 0
+                        ? `Revise os ${stats.expired} produtos vencidos e remova-os da seção.`
+                        : stats.expiring > 0
+                          ? `Planeje o rebaixa dos ${stats.expiring} produtos próximos do vencimento.`
+                          : "Sua lista está em dia. Continue cadastrando as novas validades."}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.menuPrimaryButton}
+                    onPress={() => {
+                      setMenuScreen(null);
+                      startPdfSelection();
+                    }}
+                  >
+                    <Text style={styles.menuPrimaryButtonText}>Selecionar produtos para PDF</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
+              {menuScreen === "help" ? (
+                <>
+                  <Text style={styles.menuScreenDescription}>
+                    Respostas rápidas para usar o aplicativo no dia a dia.
+                  </Text>
+                  {[
+                    ["Como cadastrar um produto?", "Toque no botão +, informe a validade e salve. Você também pode usar o leitor de código de barras."],
+                    ["Quando receberei avisos?", "Os avisos seguem as opções escolhidas em Notificações e são programados ao cadastrar ou editar um produto."],
+                    ["Como funciona o grupo de lista?", "Crie um grupo e compartilhe o código de entrada para todos acessarem a mesma lista."],
+                    ["Como gerar um relatório?", "Abra Relatórios, toque em selecionar produtos para PDF e escolha os itens desejados."],
+                  ].map(([question, answer]) => (
+                    <View style={styles.helpCard} key={question}>
+                      <Text style={styles.helpQuestion}>{question}</Text>
+                      <Text style={styles.helpAnswer}>{answer}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.helpTip}>
+                    <Text style={styles.helpTipTitle}>Dica</Text>
+                    <Text style={styles.helpTipText}>
+                      Mantenha as quantidades e validades atualizadas para que os relatórios sejam confiáveis.
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -789,8 +1506,26 @@ export default function HomeScreen() {
           company={company}
           currentUserId={session.user.id}
           onClose={() => setCompanyManagerOpen(false)}
+          onCompanyChange={(nextCompany) => setCompany(nextCompany)}
         />
       ) : null}
+
+      <HistoryScreen
+        visible={historyOpen}
+        load={async () => {
+          if (isDemo) return products.filter((product) => product.archived);
+          return loadCloudArchivedProducts(company?.id ?? null, session?.user.id ?? "");
+        }}
+        canDelete={rolePermissions.canDelete}
+        onDelete={async (product) => {
+          if (isDemo) {
+            await persist(products.filter((item) => item.id !== product.id));
+            return;
+          }
+          await deleteCloudProducts([product.id]);
+        }}
+        onClose={() => setHistoryOpen(false)}
+      />
 
       <View style={styles.dashboard}>
         <View style={styles.stat}>
@@ -817,29 +1552,41 @@ export default function HomeScreen() {
         <View style={styles.headingActions}>
           {!selectionMode ? (
             <>
-              <Pressable style={styles.testButton} onPress={addTestProducts}>
-                <Text style={styles.testButtonText}>＋ Teste</Text>
-              </Pressable>
+
               {products.length > 0 && (
                 <>
                   <Pressable style={styles.selectButton} onPress={startPdfSelection}>
                     <Text style={styles.selectButtonText}>▤ PDF</Text>
                   </Pressable>
-                  <Pressable style={styles.bulkDeleteButton} onPress={startBulkDelete}>
-                    <Text style={styles.bulkDeleteButtonText}>Remover</Text>
-                  </Pressable>
+                  {rolePermissions.canDelete ? (
+                    <Pressable style={styles.bulkDeleteButton} onPress={startBulkDelete}>
+                      <Text style={styles.bulkDeleteButtonText}>Remover</Text>
+                    </Pressable>
+                  ) : null}
                 </>
               )}
             </>
           ) : (
-            <Pressable
-              style={[styles.selectButton, styles.selectButtonActive]}
-              onPress={closeSelectionMode}
-            >
-              <Text style={[styles.selectButtonText, styles.selectButtonTextActive]}>
-                Cancelar
-              </Text>
-            </Pressable>
+            <>
+              <Pressable
+                style={[styles.selectButton, styles.selectButtonActive]}
+                onPress={() =>
+                  setSelectedIds(new Set(sorted.filter((item) => !item.archived).map((item) => item.id)))
+                }
+              >
+                <Text style={[styles.selectButtonText, styles.selectButtonTextActive]}>
+                  Tudo
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.selectButton, styles.selectButtonActive]}
+                onPress={closeSelectionMode}
+              >
+                <Text style={[styles.selectButtonText, styles.selectButtonTextActive]}>
+                  Cancelar
+                </Text>
+              </Pressable>
+            </>
           )}
         </View>
       </View>
@@ -938,7 +1685,9 @@ export default function HomeScreen() {
             return (
               <Pressable
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
-                onPress={() => selectionMode && toggleProductSelection(item.id)}
+                onPress={() => {
+                  if (selectionMode) toggleProductSelection(item.id);
+                }}
                 onLongPress={() => !selectionMode && showProductActions(item)}
               >
                 <View style={[styles.statusBar, { backgroundColor: color }]} />
@@ -947,8 +1696,8 @@ export default function HomeScreen() {
                     <Text style={styles.selectionCheck}>{selectedIds.has(item.id) ? "✓" : ""}</Text>
                   </View>
                 )}
-                {item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+                {item.photoCutoutUrl || item.imageUrl ? (
+                  <Image source={{ uri: item.photoCutoutUrl || item.imageUrl }} style={styles.productImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Text style={styles.imagePlaceholderText}>▦</Text>
@@ -1017,8 +1766,8 @@ export default function HomeScreen() {
             {actionProduct && (
               <>
                 <View style={styles.actionProductHeader}>
-                  {actionProduct.imageUrl ? (
-                    <Image source={{ uri: actionProduct.imageUrl }} style={styles.actionProductImage} />
+                  {actionProduct.photoCutoutUrl || actionProduct.imageUrl ? (
+                    <Image source={{ uri: actionProduct.photoCutoutUrl || actionProduct.imageUrl }} style={styles.actionProductImage} />
                   ) : (
                     <View style={styles.actionProductPlaceholder}><BarcodeIcon size={28} color="#789087" /></View>
                   )}
@@ -1032,6 +1781,30 @@ export default function HomeScreen() {
                   </View>
                 </View>
 
+                <Pressable
+                  style={styles.selectActionButton}
+                  onPress={() => {
+                    if (actionProduct) {
+                      setSelectedIds(new Set([actionProduct.id]));
+                      setSelectionMode(true);
+                    }
+                    setActionProduct(null);
+                  }}
+                >
+                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>☑</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.editActionTitle}>Selecionar produto</Text>
+                    <Text style={styles.editActionDescription}>Marcar para gerar PDF ou remover em grupo</Text>
+                  </View>
+                  <Text style={styles.editActionArrow}>›</Text>
+                </Pressable>
+
+                {rolePermissions.canAdd && actionProduct.imageUrl && !actionProduct.photoCutoutUrl ? (
+                  <Pressable style={styles.aiActionButton} onPress={() => processPhotoWithAi(actionProduct)}>
+                    <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
+                  </Pressable>
+                ) : null}
+                {rolePermissions.canAdd ? (
                 <Pressable style={styles.editActionButton} onPress={() => editProduct(actionProduct)}>
                   <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>✎</Text></View>
                   <View style={{ flex: 1 }}>
@@ -1041,9 +1814,13 @@ export default function HomeScreen() {
                   <Text style={styles.editActionArrow}>›</Text>
                 </Pressable>
 
+                ) : null}
+
+                {rolePermissions.canDelete ? (
                 <Pressable style={styles.removeActionButton} onPress={() => removeProduct(actionProduct)}>
                   <Text style={styles.removeActionText}>Remover produto</Text>
                 </Pressable>
+                ) : null}
                 <Pressable style={styles.cancelActionButton} onPress={() => setActionProduct(null)}>
                   <Text style={styles.cancelActionText}>Cancelar</Text>
                 </Pressable>
@@ -1058,19 +1835,47 @@ export default function HomeScreen() {
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{editingId ? "Editar produto" : "Novo produto"}</Text>
-            {imageUrl ? (
-              <View style={styles.previewWrap}>
+            <View style={styles.previewWrap}>
+              {imageUrl ? (
                 <Image source={{ uri: imageUrl }} style={styles.previewImage} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.previewTitle}>Foto encontrada</Text>
-                  <Text style={styles.previewText}>Imagem obtida pelo código de barras.</Text>
+              ) : (
+                <View style={styles.previewImagePlaceholder}>
+                  <Text style={styles.previewImagePlaceholderText}>+</Text>
                 </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.previewTitle}>
+                  {imageUrl ? "Foto do produto" : "Adicionar foto"}
+                </Text>
+                <Text style={styles.previewText}>
+                  {imageUrl ? "Toque para trocar a imagem." : "Ajude a completar o catálogo compartilhado."}
+                </Text>
               </View>
-            ) : null}
+              <Pressable style={styles.productPhotoButton} onPress={chooseProductPhoto}>
+                <Text style={styles.productPhotoButtonText}>{imageUrl ? "Trocar" : "Escolher"}</Text>
+              </Pressable>
+            </View>
+            <Pressable style={styles.aiButton} onPress={() => startAiPhoto()} disabled={aiProcessing}>
+              {aiProcessing ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.aiButtonText}>✨ Identificar por foto com IA</Text>
+              )}
+            </Pressable>
             <Text style={styles.label}>Nome do produto</Text>
             <View style={styles.inputWrap}>
               <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ex.: Leite integral" />
               {lookingUp && <ActivityIndicator color="#1E7A55" />}
+            </View>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Marca</Text>
+                <TextInput style={styles.inputSolo} value={brand} onChangeText={setBrand} placeholder="Opcional" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Tipo de embalagem</Text>
+                <TextInput style={styles.inputSolo} value={packagingType} onChangeText={setPackagingType} placeholder="Ex.: Longa vida" />
+              </View>
             </View>
             <Text style={styles.label}>Código de barras</Text>
             <TextInput style={styles.inputSolo} value={barcode} onChangeText={setBarcode} keyboardType="number-pad" placeholder="Opcional" />
@@ -1110,6 +1915,15 @@ export default function HomeScreen() {
                 <TextInput style={styles.inputSolo} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
               </View>
             </View>
+            <Text style={styles.label}>Descrição (opcional)</Text>
+            <TextInput
+              style={styles.descriptionInput}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={2}
+              placeholder="Descrição de estoque criada pela IA ou manual"
+            />
             <Text style={styles.hint}>
               {category === "Açougue" || category === "Frios/PAS"
                   ? "Avisos: 15 dias, 7 dias, 1 dia antes e no vencimento."
@@ -1154,23 +1968,27 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   heroMessage: { position: "absolute", left: 62, right: 62, textAlign: "center", fontSize: 24, lineHeight: 32, color: "#FFFFFF", fontWeight: "800" },
   heroAccent: { color: "#9ED5BD" },
-  companyLine: { color: "#CFE3D9", fontSize: 10, fontWeight: "700", marginTop: 7, textAlign: "center" },
-  brandLogo: { width: 50, height: 50 },
-  profileButton: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: "#DCECE4", backgroundColor: "#E5F2EB", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  companyLineRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 7 },
+  companyLogo: { width: 20, height: 20, borderRadius: 5, resizeMode: "contain", backgroundColor: "rgba(255,255,255,0.15)" },
+  companyLine: { color: "#CFE3D9", fontSize: 10, fontWeight: "700", textAlign: "center" },
+  brandLogo: { width: 62, height: 62 },
+  profileButton: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: "#DCECE4", backgroundColor: "#E5F2EB", alignItems: "center", justifyContent: "center", overflow: "visible" },
   profilePhoto: { width: 46, height: 46, borderRadius: 23 },
   profileInitial: { color: "#174D3B", fontSize: 21, fontWeight: "900" },
-  menuLines: { position: "absolute", right: 1, bottom: 1, width: 17, height: 17, borderRadius: 9, backgroundColor: "#E5AC4F", alignItems: "center", justifyContent: "center", gap: 2 },
+  menuLines: { position: "absolute", right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9, backgroundColor: "#E5AC4F", borderWidth: 2, borderColor: "#174D3B", alignItems: "center", justifyContent: "center", gap: 2 },
   menuLine: { width: 8, height: 1.5, borderRadius: 1, backgroundColor: "#174D3B" },
   profileMenuBackdrop: { flex: 1, flexDirection: "row", backgroundColor: "rgba(10,28,21,.48)" },
   profileMenuDismiss: { flex: 1 },
-  profileMenu: { width: "78%", maxWidth: 330, height: "100%", backgroundColor: "#F7F9F5", paddingTop: 64, paddingHorizontal: 22, shadowColor: "#000", shadowOffset: { width: -8, height: 0 }, shadowOpacity: 0.2, shadowRadius: 18, elevation: 12 },
+  profileMenu: { width: "78%", maxWidth: 330, height: "100%", backgroundColor: "#F7F9F5", paddingTop: 64, paddingHorizontal: 22, shadowColor: "#000", shadowOffset: { width: 8, height: 0 }, shadowOpacity: 0.2, shadowRadius: 18, elevation: 12 },
   profileMenuHeader: { alignItems: "center", paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: "#DDE5DF" },
   profileMenuPhoto: { width: 82, height: 82, borderRadius: 41, borderWidth: 3, borderColor: "#2A9167" },
   profileMenuFallback: { width: 82, height: 82, borderRadius: 41, backgroundColor: "#DDEEE5", borderWidth: 3, borderColor: "#2A9167", alignItems: "center", justifyContent: "center" },
   profileMenuInitial: { color: "#174D3B", fontSize: 34, fontWeight: "900" },
   profileMenuName: { color: "#18392E", fontSize: 20, fontWeight: "800", marginTop: 13, textAlign: "center" },
   profileMenuEmail: { color: "#74817A", fontSize: 12, marginTop: 4, textAlign: "center" },
+  profileMenuHeaderHint: { color: "#2A9167", fontSize: 9, fontWeight: "800", marginTop: 7 },
   profileMenuCompany: { backgroundColor: "#E8F2EC", borderRadius: 16, padding: 16, marginTop: 22 },
+  profileCompanyLogo: { width: 52, height: 52, borderRadius: 12, resizeMode: "contain", backgroundColor: "#FFF", borderWidth: 1, borderColor: "#D8E4DC", marginTop: 8 },
   profileMenuPersonal: { backgroundColor: "#E8F2EC", borderRadius: 16, padding: 16, marginTop: 22 },
   profileMenuLabel: { color: "#6C7C73", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   profileMenuCompanyName: { color: "#174D3B", fontSize: 17, fontWeight: "800", marginTop: 7 },
@@ -1178,10 +1996,69 @@ const styles = StyleSheet.create({
   profileMenuManage: { marginTop: 12, minHeight: 52, borderRadius: 14, backgroundColor: "#E5AC4F", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileMenuManageText: { color: "#173D31", fontSize: 14, fontWeight: "900" },
   profileMenuManageArrow: { color: "#173D31", fontSize: 25, fontWeight: "700" },
+  profileMenuCreate: { backgroundColor: "#1E7A55" },
+  profileMenuCreateText: { color: "#FFFFFF" },
   profileMenuJoin: { marginTop: 10, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: "#B8CDC2", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileMenuJoinText: { flex: 1, color: "#173D31", fontSize: 13, fontWeight: "900" },
+  profileMenuOptions: { marginTop: 18, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#DDE5DF" },
+  profileMenuOption: { minHeight: 48, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#E5EBE7" },
+  profileMenuOptionLast: { borderBottomWidth: 0 },
+  profileMenuOptionIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: "#E4F1E9", alignItems: "center", justifyContent: "center", marginRight: 11 },
+  profileMenuOptionIconText: { color: "#1E7A55", fontSize: 12, fontWeight: "900" },
+  profileMenuOptionText: { flex: 1, color: "#29483D", fontSize: 13, fontWeight: "700" },
+  profileMenuOptionArrow: { color: "#8CA097", fontSize: 22, fontWeight: "600" },
   profileMenuExit: { marginTop: "auto", marginBottom: 34, minHeight: 50, borderRadius: 15, backgroundColor: "#F4E4E1", alignItems: "center", justifyContent: "center" },
   profileMenuExitText: { color: "#A13A2F", fontSize: 14, fontWeight: "800" },
+  menuScreenBackdrop: { flex: 1, backgroundColor: "rgba(10,28,21,.52)", justifyContent: "flex-end" },
+  menuScreenDismiss: { flex: 1 },
+  menuScreenSheet: { maxHeight: "88%", minHeight: "55%", backgroundColor: "#F7F9F5", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 10, shadowColor: "#102C22", shadowOffset: { width: 0, height: -7 }, shadowOpacity: 0.18, shadowRadius: 18, elevation: 14 },
+  menuScreenHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#C8D1CC", alignSelf: "center", marginBottom: 14 },
+  menuScreenHeader: { paddingHorizontal: 22, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#E0E7E2" },
+  menuScreenEyebrow: { color: "#2A9167", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
+  menuScreenTitle: { color: "#18392E", fontSize: 24, fontWeight: "900", marginTop: 2 },
+  menuScreenClose: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#E6EDE8", alignItems: "center", justifyContent: "center" },
+  menuScreenCloseText: { color: "#476057", fontSize: 26, lineHeight: 29 },
+  menuScreenScroll: { flexGrow: 0 },
+  menuScreenContent: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 32 },
+  menuScreenDescription: { color: "#66776F", fontSize: 13, lineHeight: 19, marginBottom: 15 },
+  profileEditorPhotoWrap: { alignItems: "center", marginBottom: 12 },
+  profileEditorPhoto: { width: 86, height: 86, borderRadius: 43, borderWidth: 3, borderColor: "#2A9167" },
+  profileEditorFallback: { width: 86, height: 86, borderRadius: 43, backgroundColor: "#DDEEE5", borderWidth: 3, borderColor: "#2A9167", alignItems: "center", justifyContent: "center" },
+  profileEditorInitial: { color: "#174D3B", fontSize: 35, fontWeight: "900" },
+  profileEditorCameraBadge: { position: "absolute", right: -4, bottom: -2, width: 28, height: 28, borderRadius: 14, borderWidth: 3, borderColor: "#F7F9F5", backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center" },
+  profileEditorCameraText: { color: "#FFF", fontSize: 20, lineHeight: 21, fontWeight: "700" },
+  profileEditorName: { color: "#18392E", fontSize: 18, fontWeight: "900", marginTop: 10, textAlign: "center" },
+  menuFieldLabel: { color: "#52645C", fontSize: 11, fontWeight: "800", marginTop: 10, marginBottom: 6 },
+  menuFieldInput: { height: 50, borderWidth: 1, borderColor: "#D2DDD6", borderRadius: 13, backgroundColor: "#FFF", color: "#203E34", paddingHorizontal: 14, fontSize: 14 },
+  profileEmailCard: { backgroundColor: "#E8F2EC", borderRadius: 13, padding: 14, marginTop: 15 },
+  profileEmailLabel: { color: "#718078", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+  profileEmailValue: { color: "#29483D", fontSize: 13, fontWeight: "700", marginTop: 5 },
+  menuPrimaryButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginTop: 20, paddingHorizontal: 15 },
+  menuPrimaryButtonText: { color: "#FFF", fontSize: 14, fontWeight: "900", textAlign: "center" },
+  settingCard: { minHeight: 72, borderRadius: 15, borderWidth: 1, borderColor: "#DFE7E1", backgroundColor: "#FFF", paddingHorizontal: 15, paddingVertical: 12, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 },
+  settingTextWrap: { flex: 1 },
+  settingTitle: { color: "#25473B", fontSize: 14, fontWeight: "800" },
+  settingDescription: { color: "#78857E", fontSize: 10, lineHeight: 15, marginTop: 3 },
+  reportHero: { borderRadius: 18, backgroundColor: "#174D3B", alignItems: "center", paddingVertical: 21, marginBottom: 12 },
+  reportHeroNumber: { color: "#FFF", fontSize: 38, fontWeight: "900" },
+  reportHeroLabel: { color: "#D8EBE1", fontSize: 13, fontWeight: "700" },
+  reportHeroUnits: { color: "#9ED5BD", fontSize: 11, marginTop: 5 },
+  reportGrid: { flexDirection: "row", gap: 8 },
+  reportCard: { flex: 1, minHeight: 86, borderRadius: 15, padding: 12, justifyContent: "center" },
+  reportCardExpired: { backgroundColor: "#F7E5E2" },
+  reportCardExpiring: { backgroundColor: "#F8ECD9" },
+  reportCardOk: { backgroundColor: "#E1F0E8" },
+  reportCardNumber: { color: "#203E34", fontSize: 24, fontWeight: "900" },
+  reportCardLabel: { color: "#65736C", fontSize: 10, fontWeight: "800", marginTop: 3 },
+  reportInsight: { borderRadius: 15, borderWidth: 1, borderColor: "#E0E7E2", backgroundColor: "#FFF", padding: 15, marginTop: 12 },
+  reportInsightTitle: { color: "#1E7A55", fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.7 },
+  reportInsightText: { color: "#53675E", fontSize: 12, lineHeight: 18, marginTop: 6 },
+  helpCard: { borderRadius: 15, borderWidth: 1, borderColor: "#DFE7E1", backgroundColor: "#FFF", padding: 15, marginBottom: 10 },
+  helpQuestion: { color: "#23463A", fontSize: 14, fontWeight: "800" },
+  helpAnswer: { color: "#6B7972", fontSize: 12, lineHeight: 18, marginTop: 6 },
+  helpTip: { borderRadius: 15, backgroundColor: "#FFF2D9", padding: 15, marginTop: 3 },
+  helpTipTitle: { color: "#986313", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
+  helpTipText: { color: "#745A31", fontSize: 12, lineHeight: 18, marginTop: 5 },
   actions: { flexDirection: "row", gap: 10, paddingHorizontal: 22 },
   scanButton: { flex: 1, minHeight: 66, borderRadius: 18, backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 11 },
   scanIconWrap: { width: 42, height: 42, borderRadius: 13, backgroundColor: "#E4F2EB", alignItems: "center", justifyContent: "center" },
@@ -1204,8 +2081,7 @@ const styles = StyleSheet.create({
   selectButtonActive: { backgroundColor: "#F5E9E6" },
   selectButtonText: { color: "#176844", fontSize: 11, fontWeight: "800" },
   selectButtonTextActive: { color: "#A13A2F" },
-  testButton: { paddingHorizontal: 9, paddingVertical: 8, borderRadius: 10, backgroundColor: "#F1E7D5" },
-  testButtonText: { color: "#8A5A15", fontSize: 11, fontWeight: "800" },
+
   bulkDeleteButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#F8E5E2" },
   bulkDeleteButtonText: { color: "#AC3B31", fontSize: 11, fontWeight: "800" },
   categorySelectorWrap: { paddingBottom: 10 },
@@ -1250,8 +2126,12 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 25, fontWeight: "800", color: "#18392E", marginBottom: 18 },
   previewWrap: { flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: "#EDF6F0", borderRadius: 15, padding: 10, marginBottom: 7 },
   previewImage: { width: 58, height: 58, resizeMode: "contain", backgroundColor: "#FFF", borderRadius: 10 },
+  previewImagePlaceholder: { width: 58, height: 58, borderRadius: 10, backgroundColor: "#DDEEE5", alignItems: "center", justifyContent: "center" },
+  previewImagePlaceholderText: { color: "#1E7A55", fontSize: 26, fontWeight: "700" },
   previewTitle: { fontSize: 14, fontWeight: "800", color: "#24513F" },
   previewText: { fontSize: 12, color: "#64776D", marginTop: 3 },
+  productPhotoButton: { minHeight: 32, borderRadius: 9, backgroundColor: "#1E7A55", paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
+  productPhotoButtonText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
   label: { fontSize: 12, color: "#58665E", fontWeight: "700", marginBottom: 6, marginTop: 10 },
   inputWrap: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", flexDirection: "row", alignItems: "center", paddingRight: 12 },
   input: { flex: 1, height: 50, paddingHorizontal: 14, fontSize: 16, color: "#243D34" },
@@ -1292,6 +2172,7 @@ const styles = StyleSheet.create({
   actionMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 7 },
   actionCategory: { color: "#1E7A55", backgroundColor: "#E2F0E8", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
   actionExpiry: { color: "#707E77", fontSize: 11, fontWeight: "600" },
+  selectActionButton: { minHeight: 76, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#DFE7E1", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   editActionButton: { minHeight: 76, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#DFE7E1", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12 },
   actionButtonIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: "#E3F1E9", alignItems: "center", justifyContent: "center" },
   editActionIcon: { color: "#1E7A55", fontSize: 23, fontWeight: "800" },
@@ -1302,4 +2183,9 @@ const styles = StyleSheet.create({
   removeActionText: { color: "#B13B30", fontSize: 14, fontWeight: "800" },
   cancelActionButton: { height: 45, alignItems: "center", justifyContent: "center", marginTop: 3 },
   cancelActionText: { color: "#68766F", fontSize: 13, fontWeight: "700" },
+  aiButton: { height: 47, borderRadius: 13, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  aiButtonText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+  descriptionInput: { minHeight: 64, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", paddingHorizontal: 14, paddingTop: 12, fontSize: 15, color: "#243D34", textAlignVertical: "top" },
+  aiActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#E3F1E9", alignItems: "center", justifyContent: "center", marginBottom: 11 },
+  aiActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
 });

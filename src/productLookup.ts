@@ -1,6 +1,10 @@
+import { lookupCatalogProduct } from "./productCatalog";
+import { ProductCategory } from "./types";
+
 export type ProductLookupResult = {
   name: string | null;
   imageUrl: string | null;
+  category?: ProductCategory | null;
 };
 
 async function lookupOpenFoodFacts(
@@ -134,6 +138,15 @@ async function lookupGtinHub(
 export async function lookupProduct(
   barcode: string,
 ): Promise<ProductLookupResult | null> {
+  const sharedProduct = await lookupCatalogProduct(barcode);
+  if (sharedProduct) {
+    return {
+      name: sharedProduct.name,
+      imageUrl: sharedProduct.imageUrl,
+      category: sharedProduct.category,
+    };
+  }
+
   const openFoodFacts = await lookupOpenFoodFacts(barcode);
 
   // Evita gastar a cota do segundo serviço quando a primeira fonte já trouxe

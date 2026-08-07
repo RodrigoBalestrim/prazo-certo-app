@@ -2,7 +2,7 @@
   "expo": {
     "name": "Prazo Certo",
     "slug": "prazo-certo",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "icon": "./assets/seal.png",
     "orientation": "portrait",
     "scheme": "prazocerto",
@@ -18,7 +18,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permita que o Prazo Certo use a câmera para ler códigos de barras."
+          "cameraPermission": "Permita que o Prazo Certo use a cÃ¢mera para ler cÃ³digos de barras."
         }
       ],
       [
@@ -52,7 +52,8 @@
         "POST_NOTIFICATIONS",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 5
     },
     "ios": {
       "bundleIdentifier": "com.prazocerto.app",

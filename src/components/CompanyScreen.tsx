@@ -1,8 +1,10 @@
 import { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -11,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { createCompany, joinCompany, loadMyCompany, CompanyMembership } from "../company";
+import { uploadCompanyLogo } from "../companyLogo";
 import { supabase } from "../supabase";
 
 type Props = {
@@ -21,30 +24,63 @@ type Props = {
 
 export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Props) {
   const [mode, setMode] = useState<"create" | "join">(initialMode);
+  const [groupName, setGroupName] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [sector, setSector] = useState("");
+  const [logoDraft, setLogoDraft] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
 
+  async function chooseLogo() {
+    if (Platform.OS !== "web") {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permissao necessaria", "Permita o acesso as fotos para escolher a logo.");
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setLogoDraft(
+        asset.base64
+          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+          : asset.uri,
+      );
+    }
+  }
+
   async function submit() {
-    const value = mode === "create" ? companyName.trim() : inviteCode.trim();
+    const value = mode === "create" ? groupName.trim() : inviteCode.trim();
     if (!value) {
       Alert.alert(
-        mode === "create" ? "Informe o nome da empresa" : "Informe o código",
-        mode === "create" ? "Digite o nome do mercado ou da empresa." : "Digite o código enviado pelo administrador.",
+        mode === "create" ? "Informe o nome do grupo" : "Informe o código",
+        mode === "create" ? "Digite um nome para identificar o grupo de lista." : "Digite o código enviado pelo administrador.",
       );
       return;
     }
 
     setBusy(true);
     try {
-      if (mode === "create") await createCompany(value);
+      if (mode === "create") {
+        const { data } = await supabase.auth.getUser();
+        let uploadedLogoUrl = "";
+        if (logoDraft && data.user?.id) uploadedLogoUrl = await uploadCompanyLogo(data.user.id, logoDraft);
+        await createCompany(value, companyName, sector, uploadedLogoUrl);
+      }
       else await joinCompany(value);
       const company = await loadMyCompany();
       if (!company) throw new Error("Não foi possível abrir o grupo.");
       onReady(company);
     } catch (error) {
       Alert.alert(
-        mode === "create" ? "Não foi possível criar a empresa" : "Não foi possível entrar",
+        mode === "create" ? "Não foi possível criar o grupo" : "Não foi possível entrar",
         error instanceof Error ? error.message : "Tente novamente.",
       );
     } finally {
@@ -56,7 +92,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
     <SafeAreaView style={styles.safe}>
       <View style={styles.page}>
         <Image source={require("../../assets/seal.png")} style={styles.logo} />
-        <Text style={styles.title}>GRUPO DA EMPRESA</Text>
+        <Text style={styles.title}>GRUPO DE LISTA</Text>
         <Text style={styles.subtitle}>
           Compartilhe a mesma lista de produtos com todos os funcionários.
         </Text>
@@ -67,7 +103,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
               style={[styles.tab, mode === "create" && styles.tabActive]}
               onPress={() => setMode("create")}
             >
-              <Text style={[styles.tabText, mode === "create" && styles.tabTextActive]}>Criar empresa</Text>
+              <Text style={[styles.tabText, mode === "create" && styles.tabTextActive]}>Criar grupo</Text>
             </Pressable>
             <Pressable
               style={[styles.tab, mode === "join" && styles.tabActive]}
@@ -77,7 +113,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
             </Pressable>
           </View>
 
-          <Text style={styles.heading}>{mode === "create" ? "Nova empresa" : "Entrar em uma empresa"}</Text>
+          <Text style={styles.heading}>{mode === "create" ? "Novo grupo" : "Entrar em um grupo"}</Text>
           <Text style={styles.help}>
             {mode === "create"
               ? "Você será o administrador e receberá um código para convidar a equipe."
@@ -87,11 +123,53 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
           <TextInput
             autoCapitalize={mode === "create" ? "words" : "characters"}
             maxLength={mode === "create" ? 60 : 8}
-            placeholder={mode === "create" ? "Nome do mercado ou empresa" : "Ex.: AB12CD34"}
+            placeholder={mode === "create" ? "Nome do grupo" : "Ex.: AB12CD34"}
             style={styles.input}
-            value={mode === "create" ? companyName : inviteCode}
-            onChangeText={mode === "create" ? setCompanyName : setInviteCode}
+            value={mode === "create" ? groupName : inviteCode}
+            onChangeText={mode === "create" ? setGroupName : setInviteCode}
           />
+
+          {mode === "create" ? (
+            <>
+              <TextInput
+                autoCapitalize="words"
+                maxLength={80}
+                placeholder="Nome da empresa"
+                style={[styles.input, styles.fieldGap]}
+                value={companyName}
+                onChangeText={setCompanyName}
+              />
+              <TextInput
+                autoCapitalize="words"
+                maxLength={50}
+                placeholder="Setor responsavel"
+                style={[styles.input, styles.fieldGap]}
+                value={sector}
+                onChangeText={setSector}
+              />
+              <View style={styles.logoPreview}>
+                {logoDraft ? (
+                  <Image source={{ uri: logoDraft }} style={styles.logoPreviewImage} />
+                ) : (
+                  <Image source={require("../../assets/seal.png")} style={styles.logoPreviewImage} />
+                )}
+                <View style={styles.logoPreviewTextWrap}>
+                  <Text style={styles.logoPreviewTitle}>{logoDraft ? "Logo selecionada" : "Logo padrao"}</Text>
+                  <Text style={styles.logoPreviewText}>Voce pode confirmar, trocar ou remover antes de criar.</Text>
+                </View>
+              </View>
+              <View style={styles.logoActions}>
+                <Pressable style={styles.logoButton} onPress={chooseLogo}>
+                  <Text style={styles.logoButtonText}>{logoDraft ? "Trocar logo" : "Escolher logo"}</Text>
+                </Pressable>
+                {logoDraft ? (
+                  <Pressable style={styles.logoCancelButton} onPress={() => setLogoDraft("")}>
+                    <Text style={styles.logoCancelText}>Remover</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </>
+          ) : null}
 
           <Pressable style={[styles.primary, busy && styles.disabled]} onPress={submit} disabled={busy}>
             {busy ? <ActivityIndicator color="#FFF" /> : (
@@ -129,6 +207,17 @@ const styles = StyleSheet.create({
   heading: { color: "#173F32", fontSize: 21, fontWeight: "900" },
   help: { color: "#718077", fontSize: 12, lineHeight: 18, marginTop: 5, marginBottom: 16 },
   input: { height: 52, borderWidth: 1, borderColor: "#D1DCD5", borderRadius: 14, backgroundColor: "#FFF", paddingHorizontal: 14, color: "#173F32", fontSize: 16 },
+  fieldGap: { marginTop: 10 },
+  logoPreview: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 15, backgroundColor: "#E8F2EC", padding: 10, marginTop: 12 },
+  logoPreviewImage: { width: 52, height: 52, borderRadius: 13, resizeMode: "contain", backgroundColor: "#FFF" },
+  logoPreviewTextWrap: { flex: 1 },
+  logoPreviewTitle: { color: "#173F32", fontSize: 13, fontWeight: "900" },
+  logoPreviewText: { color: "#64776D", fontSize: 11, lineHeight: 15, marginTop: 3 },
+  logoActions: { flexDirection: "row", gap: 9, marginTop: 10 },
+  logoButton: { flex: 1, minHeight: 42, borderRadius: 12, backgroundColor: "#174D3B", alignItems: "center", justifyContent: "center" },
+  logoButtonText: { color: "#FFF", fontSize: 12, fontWeight: "900" },
+  logoCancelButton: { minHeight: 42, borderRadius: 12, backgroundColor: "#F3E5E1", paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
+  logoCancelText: { color: "#A13A2F", fontSize: 12, fontWeight: "900" },
   primary: { height: 53, borderRadius: 15, backgroundColor: "#23845D", alignItems: "center", justifyContent: "center", marginTop: 17 },
   primaryText: { color: "#FFF", fontSize: 14, fontWeight: "900" },
   disabled: { opacity: 0.65 },

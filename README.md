@@ -74,3 +74,47 @@ O arquivo `.env` não é enviado ao GitHub.
 A data de validade normalmente não faz parte do código de barras tradicional.
 Por isso, o aplicativo identifica o produto pelo código, mas a validade deve ser
 informada durante o cadastro.
+
+## Melhorias com IA (nova versão)
+
+Implementadas de acordo com o documento `Melhorias_Prazo_Certo_IA.txt`:
+
+- **Leitor de código de barras inteligente**: ao escanear, o app primeiro consulta a lista (evita duplicidade), depois o catálogo compartilhado e as bases gratuitas. Se nada for encontrado, oferece cadastro por foto com IA.
+- **Cadastro inteligente por foto**: a IA identifica nome, marca, categoria, descrição de estoque e tipo de embalagem. O usuário informa somente **validade** e **quantidade**.
+- **Remoção de fundo**: gera `foto_sem_fundo` (PNG transparente) e mantém a `foto_original` no cadastro.
+- **Comparação de duplicidade**: a IA compara com produtos já cadastrados e avisa quando há alta compatibilidade (ex.: 98%), evitando cadastros repetidos.
+- **Auditoria do sistema**: toda criação, alteração e remoção de produto fica registrada (usuário, data, campo, antes/depois). A tabela `audit_logs` guarda o histórico.
+- **Histórico de imagens**: tabela `product_image_history` registra foto original, foto processada, data e usuário responsável.
+- **Controle de permissões**: papéis `owner`, `admin`, `manager` (gerente), `stockist` (estoquista) e `viewer` (visualizador). O visualizador só consulta; o estoquista cadastra e atualiza; o gerente corrige; administrador gerencia usuários e exclui.
+
+### Passos para ativar
+
+1. Execute no SQL Editor do Supabase (nesta ordem):
+   - `supabase-schema.sql`
+   - `supabase-company-schema.sql`
+   - `supabase/migrations/20260807090000_ai_improvements.sql`
+2. Crie o bucket público `product-cutouts` (o script já cria) e confirme os buckets `product-images` e `avatars`.
+3. Implante a Edge Function de IA:
+
+   ```bash
+   supabase functions deploy analyze-product
+   ```
+
+4. Configure as variáveis de ambiente da função no painel do Supabase (Edge Functions > analyze-product > Secrets):
+   - `GEMINI_API_KEY` — chave gratuita do Google AI Studio (provedor padrão `gemini`)
+   - `AI_PROVIDER` — opcional (`gemini` por padrão; use `openai` se preferir)
+   - `GEMINI_MODEL` — opcional (padrão: `gemini-flash-latest`)
+   - `OPENAI_API_KEY` — opcional, usada apenas se `AI_PROVIDER=openai`
+   - `REMOVE_BG_API_KEY` — chave do remove.bg para remoção de fundo (opcional; sem ela o app funciona sem a foto sem fundo)
+
+### Níveis de permissão
+
+| Papel        | Consultar | Cadastrar entrada | Corrigir produto | Excluir | Gerenciar equipe |
+| ------------ | :-------: | :---------------: | :--------------: | :-----: | :--------------: |
+| Proprietário | ✅        | ✅                | ✅               | ✅      | ✅               |
+| Administrador| ✅        | ✅                | ✅               | ✅      | ✅               |
+| Gerente      | ✅        | ✅                | ✅               | ❌      | ❌               |
+| Estoquista   | ✅        | ✅                | ✅               | ❌      | ❌               |
+| Visualizador | ✅        | ❌                | ❌               | ❌      | ❌               |
+
+> Nota: usuários de lista pessoal (sem empresa) mantêm acesso total, como antes.

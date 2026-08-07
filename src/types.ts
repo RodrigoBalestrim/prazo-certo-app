@@ -13,10 +13,18 @@ export type Product = {
   id: string;
   name: string;
   imageUrl?: string;
+  photoOriginalUrl?: string;
+  photoCutoutUrl?: string;
+  brand?: string;
+  description?: string;
+  packagingType?: string;
   category?: ProductCategory;
   barcode: string;
   expiresAt: string;
   quantity: number;
+  notes?: string;
+  archived?: boolean;
+  archivedAt?: string;
   createdAt: string;
   notificationIds: string[];
 };

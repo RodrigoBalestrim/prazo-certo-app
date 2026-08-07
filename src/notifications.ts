@@ -2,6 +2,14 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { ProductCategory } from "./types";
 
+export type NotificationPreferences = {
+  enabled: boolean;
+  advance: boolean;
+  sevenDays: boolean;
+  oneDay: boolean;
+  expiryDay: boolean;
+};
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -28,7 +36,15 @@ export async function scheduleExpiryNotifications(
   productName: string,
   expiryIso: string,
   category: ProductCategory,
+  preferences: NotificationPreferences = {
+    enabled: true,
+    advance: true,
+    sevenDays: true,
+    oneDay: true,
+    expiryDay: true,
+  },
 ): Promise<string[]> {
+  if (!preferences.enabled) return [];
   const allowed = await prepareNotifications();
   if (!allowed) return [];
 
@@ -40,11 +56,11 @@ export async function scheduleExpiryNotifications(
       : { days: 30, body: `${productName} vence em 1 mês.` };
 
   const reminders = [
-    categoryAdvance,
-    { days: 7, body: `${productName} vence em 7 dias.` },
-    { days: 1, body: `${productName} vence amanhã.` },
-    { days: 0, body: `${productName} vence hoje.` },
-  ];
+    preferences.advance ? categoryAdvance : null,
+    preferences.sevenDays ? { days: 7, body: `${productName} vence em 7 dias.` } : null,
+    preferences.oneDay ? { days: 1, body: `${productName} vence amanhã.` } : null,
+    preferences.expiryDay ? { days: 0, body: `${productName} vence hoje.` } : null,
+  ].filter((reminder): reminder is { days: number; body: string } => reminder !== null);
 
   for (const reminder of reminders) {
     const trigger = new Date(expiry);

@@ -18,3 +18,11 @@ web-build/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Logs e builds locais
+.expo-start*.log
+.expo-preview*.log
+prazo-certo-*.apk
+
+# Arquivos temporarios do CLI do Supabase
+supabase/.temp/
