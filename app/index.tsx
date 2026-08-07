@@ -869,7 +869,7 @@ export default function HomeScreen() {
             <td>
               <strong>${escapeHtml(product.name)}</strong>
               <span class="category">${escapeHtml(product.category || "Mercearia")}</span>
-              <span class="barcode">${product.barcode ? escapeHtml(product.barcode) : "Sem código de barras"}</span>
+              ${product.barcode ? `<span class="barcode">Código de barras: ${escapeHtml(product.barcode)}</span>` : ""}
             </td>
             <td class="center">${product.quantity}</td>
             <td>${formatBrazilianDate(product.expiresAt)}</td>
@@ -907,7 +907,7 @@ export default function HomeScreen() {
             td strong { display: block; font-size: 13px; margin-bottom: 4px; }
             td span { color: #333; font-size: 10px; }
             .category { display: block; margin-bottom: 5px; }
-            .barcode { display: none; }
+            .barcode { display: block; margin-top: 6px; font-size: 16px; font-weight: 800; letter-spacing: 1.5px; color: #000; }
             .notes { display: block; margin-top: 5px; }
             .center { text-align: center; }
             .status { display: inline-block; padding: 6px 8px; border: 1px solid #000; border-radius: 5px; color: #000; font-weight: 700; white-space: nowrap; }
@@ -1915,15 +1915,7 @@ export default function HomeScreen() {
                 <TextInput style={styles.inputSolo} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
               </View>
             </View>
-            <Text style={styles.label}>Descrição (opcional)</Text>
-            <TextInput
-              style={styles.descriptionInput}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={2}
-              placeholder="Descrição de estoque criada pela IA ou manual"
-            />
+
             <Text style={styles.hint}>
               {category === "Açougue" || category === "Frios/PAS"
                   ? "Avisos: 15 dias, 7 dias, 1 dia antes e no vencimento."
@@ -2185,7 +2177,7 @@ const styles = StyleSheet.create({
   cancelActionText: { color: "#68766F", fontSize: 13, fontWeight: "700" },
   aiButton: { height: 47, borderRadius: 13, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginBottom: 14 },
   aiButtonText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  descriptionInput: { minHeight: 64, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", paddingHorizontal: 14, paddingTop: 12, fontSize: 15, color: "#243D34", textAlignVertical: "top" },
+
   aiActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#E3F1E9", alignItems: "center", justifyContent: "center", marginBottom: 11 },
   aiActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
 });
