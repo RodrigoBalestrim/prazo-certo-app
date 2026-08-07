@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from PIL import Image
 from rembg import remove, new_session
 
-app = FastAPI(title="Prazo Certo Background Removal", version="1.1.0")
+app = FastAPI(title="Prazo Certo Background Removal", version="1.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,8 +21,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Modelo portátil (~4,7 MB), baixado automaticamente na primeira execução
-_session = new_session("u2netp")
+# Modelo carregado somente na primeira chamada — evita timeout e OOM no
+# startup do Render (instancia gratuita de 512 MB).
+_session = None
+
+
+def get_session():
+    global _session
+    if _session is None:
+        print("Baixando/carregando modelo u2netp...")
+        _session = new_session("u2netp")
+        print("Modelo pronto!")
+    return _session
 
 
 @app.get("/")
@@ -37,7 +47,7 @@ async def remover_fundo(file: UploadFile = File(...)):
         return {"erro": "Arquivo vazio"}
 
     entrada = Image.open(BytesIO(dados)).convert("RGB")
-    saida = remove(entrada, session=_session)
+    saida = remove(entrada, session=get_session())
     buffer = BytesIO()
     saida.save(buffer, format="PNG")
     buffer.seek(0)
