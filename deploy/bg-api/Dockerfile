@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pré-baixa o modelo u2netp na BUILD (evita download lento/falho em runtime)
+RUN python -c "from rembg import new_session; new_session('u2netp')"
+
 COPY app.py .
 
 EXPOSE 8000
