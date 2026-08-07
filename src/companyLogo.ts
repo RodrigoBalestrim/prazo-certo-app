@@ -15,25 +15,42 @@ function imageExtension(contentType: string): string {
 }
 
 export async function uploadCompanyLogo(userId: string, imageUri: string): Promise<string> {
-  const response = await fetch(imageUri);
-  if (!response.ok) throw new Error("Nao foi possivel ler a imagem selecionada.");
+  let imageBytes: ArrayBuffer;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(imageUri);
+      if (!response.ok) throw new Error("Erro ao ler a imagem.");
 
-  const contentType = imageContentType(imageUri, response.headers.get("content-type"));
-  if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
-    throw new Error("Use uma imagem JPG, PNG ou WEBP.");
+      const contentType = imageContentType(imageUri, response.headers.get("content-type"));
+      if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
+        throw new Error("Use uma imagem JPG, PNG ou WEBP.");
+      }
+
+      imageBytes = await response.arrayBuffer();
+      if (imageBytes.byteLength > MAX_IMAGE_SIZE) {
+        throw new Error("A imagem deve ter no maximo 2 MB.");
+      }
+      break;
+    } catch (err) {
+      if (attempt === 3) throw new Error(`Nao foi possivel ler a imagem (${attempt} tentativas).`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
 
-  const file = await response.arrayBuffer();
-  if (file.byteLength > MAX_IMAGE_SIZE) {
-    throw new Error("A imagem deve ter no maximo 2 MB.");
-  }
-
+  const contentType = imageContentType(imageUri, null);
   const extension = imageExtension(contentType);
   const filePath = `${userId}/company-logo.${extension}`;
-  const { error } = await supabase.storage
-    .from("company-logos")
-    .upload(filePath, file, { contentType, upsert: true });
-  if (error) throw error;
+
+  let uploadError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const result = await supabase.storage
+      .from("company-logos")
+      .upload(filePath, imageBytes!, { contentType, upsert: true });
+    if (!result.error) { uploadError = null; break; }
+    uploadError = result.error;
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (uploadError) throw new Error(`Falha ao enviar a logo (${(uploadError as Error).message || "tente novamente"}).`);
 
   const { data } = supabase.storage.from("company-logos").getPublicUrl(filePath);
   return `${data.publicUrl}?v=${Date.now()}`;

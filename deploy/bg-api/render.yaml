@@ -1,0 +1,8 @@
+# Render Blueprint — deploy gratuito
+services:
+  - type: web
+    name: prazo-certo-bg-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/bg-api/Dockerfile
+    healthCheckPath: /

@@ -1,0 +1,7 @@
+﻿# pacotes Python
+__pycache__/
+*.pyc
+
+# modelo baixado na primeira execução
+*.onnx
+!u2net.onnx

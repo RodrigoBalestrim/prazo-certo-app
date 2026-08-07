@@ -105,7 +105,28 @@ Implementadas de acordo com o documento `Melhorias_Prazo_Certo_IA.txt`:
    - `AI_PROVIDER` — opcional (`gemini` por padrão; use `openai` se preferir)
    - `GEMINI_MODEL` — opcional (padrão: `gemini-flash-latest`)
    - `OPENAI_API_KEY` — opcional, usada apenas se `AI_PROVIDER=openai`
-   - `REMOVE_BG_API_KEY` — chave do remove.bg para remoção de fundo (opcional; sem ela o app funciona sem a foto sem fundo)
+   - `BG_API_URL` — URL da sua API gratuita de remoção de fundo (recomendado, sem custo)
+   - `REMOVE_BG_API_KEY` — chave do remove.bg (alternativa; 50 imagens/mês grátis)
+
+### Remoção de fundo gratuita (100% sem custo)
+
+A Edge Function tenta, nesta ordem: **API auto-hospedada gratuita (`BG_API_URL`)** → **remove.bg** → **Gemini (modelo de imagem)**.
+
+Para hospedar a API gratuita de remoção de fundo (projeto [Background-Removal-API](https://github.com/gaelos7k/Background-Removal-API), Python + FastAPI + U²-Net):
+
+**Opção A — Hugging Face Spaces (recomendada, 16 GB de RAM grátis):**
+1. Crie uma conta em huggingface.co e um novo Space (SDK: Docker/Python, CPU).
+2. Faça o upload do repositório do projeto (com Git LFS para o modelo `u2net.pth`).
+3. Instale as dependências (`pip install -r requirements.txt` — use `--extra-index-url https://download.pytorch.org/whl/cpu`).
+4. Rode `cd backend && python main.py` (a porta é lida de `PORT`).
+5. O Space fica em `https://SEU-USUARIO-BG-API.hf.space` → use como `BG_API_URL`.
+
+**Opção B — Render (plano gratuito):**
+1. Novo *Web Service* apontando para o repositório do projeto.
+2. Build: `pip install -r requirements.txt`; Start: `cd backend && python main.py`.
+3. O serviço fica em `https://SEU-SERVICO.onrender.com` → use como `BG_API_URL`.
+
+> ⚠️ O modelo U²-Net precisa de ~2–4 GB de RAM. No Render gratuito (512 MB) pode falhar; prefira o Hugging Face Spaces.
 
 ### Níveis de permissão
 
