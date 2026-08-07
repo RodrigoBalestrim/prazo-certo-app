@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pré-baixa o modelo u2netp na BUILD (evita download lento/falho em runtime)
-RUN python -c "from rembg import new_session; new_session('u2netp')"
+# Pré-baixa o modelo u2netp.onnx (~4,7 MB) na build
+RUN python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx', '/app/u2netp.onnx')"
 
 COPY app.py .
 
