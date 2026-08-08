@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   Image,
   Linking,
@@ -26,7 +27,7 @@ import { dateToIso, daysUntil, expiryLabel, formatBrazilianDate, maskBrazilianDa
 import { cancelNotifications, NotificationPreferences, prepareNotifications, scheduleExpiryNotifications } from "@/notifications";
 import { lookupProduct } from "@/productLookup";
 import { contributeCatalogProduct } from "@/productCatalog";
-import { loadProducts, saveProducts } from "@/storage";
+import { clearSyncPending, isSyncPending, loadProducts, markSyncPending, saveProducts } from "@/storage";
 import { PRODUCT_CATEGORIES, Product, ProductCategory } from "@/types";
 import { BarcodeIcon } from "@/components/BarcodeIcon";
 import { AuthScreen } from "@/components/AuthScreen";
@@ -136,7 +137,14 @@ export default function HomeScreen() {
       setSession(nextSession);
       setAuthLoading(false);
     });
-    return () => listener.subscription.unsubscribe();
+    // Quando o app volta para o primeiro plano, envia o que estava pendente.
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") syncPendingChanges().catch(() => undefined);
+    });
+    return () => {
+      listener.subscription.unsubscribe();
+      appState.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -392,15 +400,34 @@ export default function HomeScreen() {
   async function persist(next: Product[]) {
     setProducts(next);
     if (!session?.user.id) return;
-    await saveProducts(next, `${session.user.id}/${company?.id ?? "personal"}`);
+    const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+    await saveProducts(next, scopeKey);
     if (isDemo) return;
     try {
       await replaceCloudProducts(session.user.id, company?.id ?? null, next);
+      await clearSyncPending(scopeKey);
     } catch {
+      await markSyncPending(scopeKey);
       Alert.alert(
         "Produto salvo no celular",
-        "A sincronização online não foi concluída. Verifique sua internet e tente novamente.",
+        "A sincronização online não foi concluída. Seus dados serão enviados automaticamente quando a internet voltar.",
       );
+    }
+  }
+
+  // Envia para a nuvem os produtos salvos no celular enquanto estava offline.
+  async function syncPendingChanges() {
+    if (!session?.user.id || isDemo) return;
+    const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+    if (!(await isSyncPending(scopeKey))) return;
+    try {
+      const local = await loadProducts(scopeKey);
+      if (local.length) {
+        await replaceCloudProducts(session.user.id, company?.id ?? null, local);
+      }
+      await clearSyncPending(scopeKey);
+    } catch {
+      // Sem internet ainda; tenta novamente na próxima ativação do app.
     }
   }
 

@@ -16,3 +16,19 @@ export async function loadProducts(userId?: string): Promise<Product[]> {
 export async function saveProducts(products: Product[], userId?: string): Promise<void> {
   await AsyncStorage.setItem(userId ? `${STORAGE_KEY}/${userId}` : STORAGE_KEY, JSON.stringify(products));
 }
+
+const PENDING_KEY_PREFIX = "@prazo-certo/pending-sync/";
+
+// Marca que existem dados locais aguardando sincronização online.
+export async function markSyncPending(scopeKey: string): Promise<void> {
+  await AsyncStorage.setItem(`${PENDING_KEY_PREFIX}${scopeKey}`, "1");
+}
+
+export async function clearSyncPending(scopeKey: string): Promise<void> {
+  await AsyncStorage.removeItem(`${PENDING_KEY_PREFIX}${scopeKey}`);
+}
+
+export async function isSyncPending(scopeKey: string): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(`${PENDING_KEY_PREFIX}${scopeKey}`);
+  return raw === "1";
+}
