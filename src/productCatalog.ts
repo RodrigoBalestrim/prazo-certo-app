@@ -33,14 +33,33 @@ function isLocalImage(uri: string): boolean {
   return /^(data:|file:|blob:)/.test(uri);
 }
 
+function dataUriToArrayBuffer(uri: string): ArrayBuffer | null {
+  const comma = uri.indexOf(",");
+  if (comma < 0) return null;
+  const base64 = uri.slice(comma + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 async function uploadProductImage(userId: string, barcode: string, uri: string): Promise<string> {
-  const response = await fetch(uri);
-  if (!response.ok) throw new Error("Não foi possível ler a foto do produto.");
-  const contentType = imageContentType(uri, response.headers.get("content-type"));
+  let file: ArrayBuffer;
+  if (uri.startsWith("data:")) {
+    const decoded = dataUriToArrayBuffer(uri);
+    if (!decoded) throw new Error("Não foi possível ler a foto do produto.");
+    file = decoded;
+  } else {
+    const response = await fetch(uri);
+    if (!response.ok) throw new Error("Não foi possível ler a foto do produto.");
+    file = await response.arrayBuffer();
+  }
+  const contentType = imageContentType(uri, null);
   if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
     throw new Error("Use uma imagem JPG, PNG ou WEBP.");
   }
-  const file = await response.arrayBuffer();
   if (file.byteLength > MAX_IMAGE_SIZE) {
     throw new Error("A imagem deve ter no máximo 5 MB.");
   }

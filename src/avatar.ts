@@ -16,15 +16,34 @@ function avatarExtension(contentType: string): string {
   return "jpg";
 }
 
-export async function uploadAvatar(userId: string, imageUri: string): Promise<string> {
-  const response = await fetch(imageUri);
-  if (!response.ok) throw new Error("Não foi possível ler a foto selecionada.");
+function dataUriToArrayBuffer(uri: string): ArrayBuffer | null {
+  const comma = uri.indexOf(",");
+  if (comma < 0) return null;
+  const base64 = uri.slice(comma + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
-  const contentType = avatarContentType(imageUri, response.headers.get("content-type"));
+export async function uploadAvatar(userId: string, imageUri: string): Promise<string> {
+  let file: ArrayBuffer;
+  if (imageUri.startsWith("data:")) {
+    const decoded = dataUriToArrayBuffer(imageUri);
+    if (!decoded) throw new Error("Não foi possível ler a foto selecionada.");
+    file = decoded;
+  } else {
+    const response = await fetch(imageUri);
+    if (!response.ok) throw new Error("Não foi possível ler a foto selecionada.");
+    file = await response.arrayBuffer();
+  }
+
+  const contentType = avatarContentType(imageUri, null);
   if (!ALLOWED_IMAGE_TYPES.has(contentType)) {
     throw new Error("Use uma imagem JPG, PNG ou WEBP.");
   }
-  const file = await response.arrayBuffer();
   if (file.byteLength > MAX_AVATAR_SIZE) {
     throw new Error("A imagem deve ter no máximo 5 MB.");
   }
