@@ -1909,11 +1909,12 @@ export default function HomeScreen() {
               />
               {Platform.OS !== "web" ? (
                 <Pressable
-                  style={styles.barcodeCameraButton}
+                  style={styles.barcodeScannerButton}
                   onPress={openFieldScanner}
-                  accessibilityLabel="Escanear código de barras com a câmera"
+                  accessibilityLabel="Escanear código de barras"
                 >
-                  <Text style={styles.barcodeCameraText}>📷</Text>
+                  <BarcodeIcon size={18} color="#FFF" />
+                  <Text style={styles.barcodeScannerText}>Escanear</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -2170,8 +2171,8 @@ const styles = StyleSheet.create({
   inputSolo: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", paddingHorizontal: 14, fontSize: 16, color: "#243D34" },
   barcodeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   barcodeInput: { flex: 1 },
-  barcodeCameraButton: { width: 50, height: 50, borderRadius: 13, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center" },
-  barcodeCameraText: { fontSize: 20 },
+  barcodeScannerButton: { height: 50, borderRadius: 13, backgroundColor: "#1E7A55", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
+  barcodeScannerText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
   categoryOptions: { gap: 7, paddingRight: 10, paddingVertical: 2 },
   categoryOption: { paddingHorizontal: 13, height: 38, borderRadius: 12, borderWidth: 1, borderColor: "#D5DDD7", backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
   categoryOptionActive: { backgroundColor: "#1E7A55", borderColor: "#1E7A55" },
