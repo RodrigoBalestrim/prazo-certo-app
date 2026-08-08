@@ -7,11 +7,18 @@ export type ProductLookupResult = {
   category?: ProductCategory | null;
 };
 
+// Limita cada consulta externa a 6s para a busca não ficar travada.
+function fetchWithTimeout(url: string, options?: RequestInit, timeoutMs = 6000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function lookupOpenFoodFacts(
   barcode: string,
 ): Promise<ProductLookupResult | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?product_type=all`,
       {
         headers: {
@@ -61,7 +68,7 @@ async function lookupUpcItemDb(
   barcode: string,
 ): Promise<ProductLookupResult | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(barcode)}`,
       {
         headers: {
@@ -102,7 +109,7 @@ async function lookupGtinHub(
   barcode: string,
 ): Promise<ProductLookupResult | null> {
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://gtinhub.com/api/v1/product/${encodeURIComponent(barcode)}`,
       { headers: { Accept: "application/json" } },
     );
@@ -147,22 +154,20 @@ export async function lookupProduct(
     };
   }
 
-  const openFoodFacts = await lookupOpenFoodFacts(barcode);
+  // Open Food Facts e UPCItemDB em paralelo (cada uma com timeout de 6s).
+  const [openFoodFacts, upcItemDb] = await Promise.allSettled([
+    lookupOpenFoodFacts(barcode),
+    lookupUpcItemDb(barcode),
+  ]);
+  const off = openFoodFacts.status === "fulfilled" ? openFoodFacts.value : null;
+  const upc = upcItemDb.status === "fulfilled" ? upcItemDb.value : null;
 
-  // Evita gastar a cota do segundo serviço quando a primeira fonte já trouxe
-  // todas as informações necessárias.
-  if (openFoodFacts?.name && openFoodFacts.imageUrl) {
-    return openFoodFacts;
-  }
-
-  const upcItemDb = await lookupUpcItemDb(barcode);
   const partialResult = {
-    name: openFoodFacts?.name || upcItemDb?.name || null,
-    imageUrl: openFoodFacts?.imageUrl || upcItemDb?.imageUrl || null,
+    name: off?.name || upc?.name || null,
+    imageUrl: off?.imageUrl || upc?.imageUrl || null,
   };
 
-  // O plano sem chave do GTINHub é limitado; só o usamos quando as duas
-  // primeiras bases não conseguem identificar o nome.
+  // GTINHub é limitado; só o usamos quando as duas primeiras não trazem o nome.
   if (partialResult.name) return partialResult;
 
   const gtinHub = await lookupGtinHub(barcode);
