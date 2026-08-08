@@ -203,6 +203,26 @@ export default function HomeScreen() {
       }
       try {
         const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+
+        // 1) Se há produtos salvos offline, envia primeiro — evita que a lista
+        // da nuvem (mais antiga) sobrescreva os produtos adicionados sem internet.
+        if (await isSyncPending(scopeKey)) {
+          const localPending = await loadProducts(scopeKey);
+          if (localPending.length) {
+            try {
+              await replaceCloudProducts(session.user.id, company?.id ?? null, localPending);
+              await clearSyncPending(scopeKey);
+            } catch {
+              if (active) setProducts(localPending);
+              if (active) setLoading(false);
+              return;
+            }
+          } else {
+            await clearSyncPending(scopeKey);
+          }
+        }
+
+        // 2) Sincroniza com a nuvem normalmente
         const remoteProducts = await loadCloudProducts(company?.id ?? null, session.user.id);
         if (!active) return;
         if (remoteProducts.length) {
