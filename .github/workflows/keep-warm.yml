@@ -1,0 +1,16 @@
+# Mantém a API de remoção de fundo (Render free) acordada.
+# O Render free dorme após ~15 min sem tráfego; este ping a cada 10 min
+# evita o cold start (que levava 30-60s).
+name: Keep BG API warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Background Removal API
+        run: curl -fsS "https://prazo-certo-app.onrender.com/" > /dev/null || true
