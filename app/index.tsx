@@ -49,6 +49,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerFieldOnly, setScannerFieldOnly] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -445,7 +446,28 @@ export default function HomeScreen() {
         return;
       }
     }
+    setScannerFieldOnly(false);
     setScannerOpen(true);
+  }
+
+  // Abre a câmera a partir do campo "Código de barras" do formulário:
+  // ao escanear, apenas preenche o campo sem abrir o fluxo completo.
+  async function openFieldScanner() {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert("Câmera necessária", "Libere a câmera para ler o código de barras.");
+        return;
+      }
+    }
+    setScannerFieldOnly(true);
+    setScannerOpen(true);
+  }
+
+  function onFieldBarcodeScanned(value: string) {
+    setScannerOpen(false);
+    setScannerFieldOnly(false);
+    setBarcode(value);
   }
 
   async function onBarcodeScanned(value: string) {
@@ -542,6 +564,7 @@ export default function HomeScreen() {
         imageUri: uri,
         existingProductNames: existingProductNames(products),
       });
+      if (code) setBarcode(code);
       if (result.name) setName(result.name);
       if (result.brand) setBrand(result.brand);
       if (result.category) setCategory(result.category);
@@ -1876,7 +1899,24 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={styles.label}>Código de barras</Text>
-            <TextInput style={styles.inputSolo} value={barcode} onChangeText={setBarcode} keyboardType="number-pad" placeholder="Opcional" />
+            <View style={styles.barcodeRow}>
+              <TextInput
+                style={[styles.inputSolo, styles.barcodeInput]}
+                value={barcode}
+                onChangeText={setBarcode}
+                keyboardType="number-pad"
+                placeholder="Opcional"
+              />
+              {Platform.OS !== "web" ? (
+                <Pressable
+                  style={styles.barcodeCameraButton}
+                  onPress={openFieldScanner}
+                  accessibilityLabel="Escanear código de barras com a câmera"
+                >
+                  <Text style={styles.barcodeCameraText}>📷</Text>
+                </Pressable>
+              ) : null}
+            </View>
             <Text style={styles.label}>Categoria</Text>
             <ScrollView
               horizontal
@@ -1933,7 +1973,9 @@ export default function HomeScreen() {
             style={StyleSheet.absoluteFill}
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e", "code128"] }}
-            onBarcodeScanned={({ data }) => onBarcodeScanned(data)}
+            onBarcodeScanned={({ data }) =>
+              scannerFieldOnly ? onFieldBarcodeScanned(data) : onBarcodeScanned(data)
+            }
           />
           <View style={styles.cameraOverlay}>
             <Text style={styles.cameraTitle}>Aponte para o código de barras</Text>
@@ -2126,6 +2168,10 @@ const styles = StyleSheet.create({
   inputWrap: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", flexDirection: "row", alignItems: "center", paddingRight: 12 },
   input: { flex: 1, height: 50, paddingHorizontal: 14, fontSize: 16, color: "#243D34" },
   inputSolo: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: "#D5DAD5", backgroundColor: "#FFF", paddingHorizontal: 14, fontSize: 16, color: "#243D34" },
+  barcodeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  barcodeInput: { flex: 1 },
+  barcodeCameraButton: { width: 50, height: 50, borderRadius: 13, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center" },
+  barcodeCameraText: { fontSize: 20 },
   categoryOptions: { gap: 7, paddingRight: 10, paddingVertical: 2 },
   categoryOption: { paddingHorizontal: 13, height: 38, borderRadius: 12, borderWidth: 1, borderColor: "#D5DDD7", backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
   categoryOptionActive: { backgroundColor: "#1E7A55", borderColor: "#1E7A55" },
