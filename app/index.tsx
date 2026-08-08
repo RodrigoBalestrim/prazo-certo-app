@@ -977,7 +977,7 @@ export default function HomeScreen() {
             * { box-sizing: border-box; }
             body { font-family: Arial, sans-serif; color: #000; margin: 0; font-size: 12px; }
             .header { display: flex; align-items: center; gap: 14px; background: #FFF; color: #000; padding: 16px 0 12px; border-bottom: 2px solid #000; }
-            .logo { width: 58px; height: 58px; object-fit: contain; border: 1px solid #DDD; border-radius: 10px; padding: 5px; }
+            .logo { width: 58px; height: 58px; object-fit: contain; border: 1px solid #DDD; border-radius: 10px; padding: 5px; filter: grayscale(100%); }
             .brand { font-size: 26px; font-weight: 800; margin: 0 0 5px; }
             .subtitle { color: #333; margin: 0; }
             .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 18px; margin: 18px 2px 12px; color: #333; }
@@ -992,14 +992,14 @@ export default function HomeScreen() {
             .center { text-align: center; }
             .status { display: inline-block; padding: 6px 8px; border: 1px solid #000; border-radius: 5px; color: #000; font-weight: 700; white-space: nowrap; }
             .category-row td { background: #FFF; color: #000; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; border-top: 2px solid #000; border-bottom: 1px solid #000; padding: 9px 11px; }
-            .footer { position: fixed; right: 0; bottom: -22px; color: #555; font-size: 9px; text-align: right; }
+            .footer { position: fixed; right: 0; top: 5px; color: #555; font-size: 9px; text-align: right; }
           </style>
         </head>
         <body>
           <div class="header">
             ${companyLogo ? `<img class="logo" src="${escapeHtml(companyLogo)}" />` : ""}
             <div>
-            <p class="brand">Prazo Certo</p>
+            <p class="brand">${escapeHtml(groupName)}</p>
             <p class="subtitle">Relatório de validade dos produtos selecionados</p>
             </div>
           </div>
