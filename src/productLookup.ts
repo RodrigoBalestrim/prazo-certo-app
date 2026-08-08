@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { lookupCatalogProduct } from "./productCatalog";
 import { ProductCategory } from "./types";
 
@@ -142,6 +143,41 @@ async function lookupGtinHub(
   }
 }
 
+const CACHE_KEY_PREFIX = "@prazo-certo/lookup-cache/";
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+const memoryCache = new Map<string, ProductLookupResult>();
+
+// Cache local: busca repetida do mesmo código fica instantânea.
+async function readCache(barcode: string): Promise<ProductLookupResult | null> {
+  const hit = memoryCache.get(barcode);
+  if (hit) return hit;
+  try {
+    const raw = await AsyncStorage.getItem(`${CACHE_KEY_PREFIX}${barcode}`);
+    if (raw) {
+      const entry = JSON.parse(raw) as { at: number; result: ProductLookupResult };
+      if (Date.now() - entry.at < CACHE_TTL_MS) {
+        memoryCache.set(barcode, entry.result);
+        return entry.result;
+      }
+    }
+  } catch {
+    // Cache é best-effort.
+  }
+  return null;
+}
+
+async function writeCache(barcode: string, result: ProductLookupResult): Promise<void> {
+  memoryCache.set(barcode, result);
+  try {
+    await AsyncStorage.setItem(
+      `${CACHE_KEY_PREFIX}${barcode}`,
+      JSON.stringify({ at: Date.now(), result }),
+    );
+  } catch {
+    // Best-effort.
+  }
+}
+
 export async function lookupProduct(
   barcode: string,
 ): Promise<ProductLookupResult | null> {
@@ -153,6 +189,9 @@ export async function lookupProduct(
       category: sharedProduct.category,
     };
   }
+
+  const cached = await readCache(barcode);
+  if (cached) return cached;
 
   // Open Food Facts e UPCItemDB em paralelo (cada uma com timeout de 6s).
   const [openFoodFacts, upcItemDb] = await Promise.allSettled([
@@ -168,12 +207,18 @@ export async function lookupProduct(
   };
 
   // GTINHub é limitado; só o usamos quando as duas primeiras não trazem o nome.
-  if (partialResult.name) return partialResult;
+  if (partialResult.name) {
+    await writeCache(barcode, partialResult);
+    return partialResult;
+  }
 
   const gtinHub = await lookupGtinHub(barcode);
   const result = {
     name: gtinHub?.name || null,
     imageUrl: partialResult.imageUrl || gtinHub?.imageUrl || null,
   };
+  if (result.name || result.imageUrl) {
+    await writeCache(barcode, result);
+  }
   return result.name || result.imageUrl ? result : null;
 }
