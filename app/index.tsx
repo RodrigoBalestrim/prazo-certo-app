@@ -1702,7 +1702,7 @@ export default function HomeScreen() {
                 ? 15
                 : 30;
             const hasExpiryAlert = days >= 0 && days <= alertAdvanceDays;
-            const color = days < 0 ? "#B42318" : days <= 3 ? "#B54708" : "#1E7A55";
+            const color = days < 0 ? "#000000" : days <= 3 ? "#B54708" : "#1E7A55";
             return (
               <Pressable
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
@@ -2139,7 +2139,7 @@ const styles = StyleSheet.create({
   productName: { flex: 1, fontSize: 17, fontWeight: "700", color: "#243D34" },
   badge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
-  expiredRemovalNotice: { color: "#B42318", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
