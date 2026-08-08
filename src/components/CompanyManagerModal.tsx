@@ -28,6 +28,7 @@ import {
   updateMemberRole,
 } from "../company";
 import { uploadCompanyLogo } from "../companyLogo";
+import { compressImageForUpload } from "../imageUtils";
 
 type Props = {
   visible: boolean;
@@ -151,7 +152,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.75,
+      quality: 0.5,
       base64: true,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -161,7 +162,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
       : asset.uri;
     setLogoBusy(true);
     try {
-      const uploadedUrl = await uploadCompanyLogo(currentUserId, uri);
+      const uploadedUrl = await uploadCompanyLogo(currentUserId, await compressImageForUpload(uri));
       await updateCompany({ logoUrl: uploadedUrl });
       await refreshCompany();
       Alert.alert("Logo atualizada", "A logo da empresa foi salva com sucesso.");

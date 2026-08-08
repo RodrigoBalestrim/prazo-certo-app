@@ -36,6 +36,7 @@ import { HistoryScreen } from "@/components/HistoryScreen";
 import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, replaceCloudProducts } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
+import { compressImageForUpload } from "@/imageUtils";
 import { supabase } from "@/supabase";
 import { uploadAvatar } from "@/avatar";
 
@@ -328,16 +329,13 @@ export default function HomeScreen() {
     });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      setImageUrl(
-        asset.base64
-          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
-          : asset.uri,
-      );
-      setPhotoOriginal(
-        asset.base64
-          ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
-          : asset.uri,
-      );
+      const uri = asset.base64
+        ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+        : asset.uri;
+      compressImageForUpload(uri).then((compressed) => {
+        setImageUrl(compressed);
+        setPhotoOriginal(compressed);
+      });
       setCutoutUrl("");
     }
   }
@@ -514,7 +512,7 @@ export default function HomeScreen() {
     const uri = asset.base64
       ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
       : asset.uri;
-    await analyzePhoto(uri, code);
+    await analyzePhoto(await compressImageForUpload(uri), code);
   }
 
   async function takePhotoForAi(code?: string) {
@@ -524,7 +522,7 @@ export default function HomeScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
+      quality: 0.6,
       base64: true,
     });
     if (result.canceled || !result.assets[0]) return;
@@ -532,7 +530,7 @@ export default function HomeScreen() {
     const uri = asset.base64
       ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
       : asset.uri;
-    await analyzePhoto(uri, code);
+    await analyzePhoto(await compressImageForUpload(uri), code);
   }
 
   async function analyzePhoto(uri: string, code?: string) {
