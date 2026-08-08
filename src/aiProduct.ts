@@ -23,6 +23,10 @@ export type AiAnalysisInput = {
   barcode?: string;
   imageUri: string;
   existingProductNames?: string[];
+  // true = só identifica o produto (rápido); false = também remove o fundo
+  skipCutout?: boolean;
+  // true = só remove o fundo (segundo plano, após cadastrar)
+  cutoutOnly?: boolean;
 };
 
 // Chama a Edge Function "analyze-product": análise por foto + remoção de fundo
@@ -35,6 +39,8 @@ export async function analyzeProductWithAi(input: AiAnalysisInput): Promise<AiPr
       imageBase64: isDataUri ? input.imageUri : undefined,
       imageUrl: isDataUri ? undefined : input.imageUri,
       existingProducts: input.existingProductNames || [],
+      skipCutout: input.skipCutout ?? false,
+      cutoutOnly: input.cutoutOnly ?? false,
     },
   });
   if (error) {

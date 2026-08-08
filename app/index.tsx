@@ -590,6 +590,7 @@ export default function HomeScreen() {
         barcode: code || barcode,
         imageUri: uri,
         existingProductNames: existingProductNames(products),
+        skipCutout: true,
       });
       if (code) setBarcode(code);
       if (result.name) setName(result.name);
@@ -632,6 +633,31 @@ export default function HomeScreen() {
       );
     } finally {
       setAiProcessing(false);
+    }
+  }
+
+  // Remove o fundo da foto em segundo plano, após o cadastro, e atualiza o
+  // produto automaticamente quando o resultado fica pronto.
+  async function processPhotoCutoutForProduct(product: Product) {
+    try {
+      const result = await analyzeProductWithAi({
+        barcode: product.barcode,
+        imageUri: product.photoOriginalUrl || product.imageUrl || "",
+        existingProductNames: existingProductNames(products),
+        cutoutOnly: true,
+      });
+      if (result.cutoutUrl) {
+        const updated: Product = {
+          ...product,
+          photoCutoutUrl: result.cutoutUrl,
+          imageUrl: result.cutoutUrl,
+        };
+        await persist(
+          products.map((item) => (item.id === product.id ? updated : item)),
+        );
+      }
+    } catch {
+      // Sem internet ou serviço indisponível: mantém a foto original.
     }
   }
 
@@ -765,6 +791,12 @@ export default function HomeScreen() {
     }
     resetForm();
     setFormOpen(false);
+
+    // Se o produto foi identificado com foto mas ainda não tem fundo removido,
+    // processa a remoção em segundo plano e atualiza a foto automaticamente.
+    if (!isDemo && product.imageUrl && !product.photoCutoutUrl) {
+      processPhotoCutoutForProduct(product).catch(() => undefined);
+    }
   }
 
   function editProduct(product: Product) {

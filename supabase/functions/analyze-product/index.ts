@@ -195,7 +195,7 @@ async function analyzeWithOpenAI(
           ],
         },
       ],
-      max_tokens: 700,
+      max_tokens: 300,
     }),
   });
 
@@ -258,7 +258,7 @@ async function analyzeWithGemini(
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 700,
+        maxOutputTokens: 300,
         responseMimeType: "application/json",
         responseSchema: {
           type: "OBJECT",
@@ -469,6 +469,8 @@ Deno.serve(async (req) => {
       imageBase64?: string;
       imageUrl?: string;
       existingProducts?: string[];
+      skipCutout?: boolean;
+      cutoutOnly?: boolean;
     };
 
     const image = await resolveImage(body);
@@ -479,14 +481,22 @@ Deno.serve(async (req) => {
       ? body.existingProducts.map((name) => String(name).trim()).filter(Boolean).slice(0, 40)
       : [];
 
-    const analysis = await analyzeImage(image, barcode, existingProducts);
+    // Fluxo em duas etapas:
+    //  - skipCutout=true  → só identifica (rápido, ~3-5s); o app mostra nome+foto.
+    //  - cutoutOnly=true  → só remove o fundo (chamado em segundo plano após salvar).
+    //  - nenhum           → análise + remoção de fundo (botão "Processar foto com IA").
+    const analysis = body.cutoutOnly
+      ? { name: null, brand: null, category: null, description: null, packagingType: null, matches: [] }
+      : await analyzeImage(image, barcode, existingProducts);
 
     // Timeout de 75 s: cobre o cold start do Render free (30-60s) sem falhar.
     // O serviço é mantido acordado por um ping a cada 10 min (GitHub Actions).
-    const cutoutPng = await Promise.race([
-      removeBackground(image),
-      new Promise<Uint8Array | null>((resolve) => setTimeout(() => resolve(null), 75000)),
-    ]);
+    const cutoutPng = body.skipCutout
+      ? null
+      : await Promise.race([
+          removeBackground(image),
+          new Promise<Uint8Array | null>((resolve) => setTimeout(() => resolve(null), 75000)),
+        ]);
     const code = safeCode(barcode);
 
     let originalUrl: string | null = null;
@@ -519,7 +529,7 @@ Deno.serve(async (req) => {
     // de outros usuários, completa somente as imagens que estão faltando
     // (o trigger protect_product_catalog_update bloqueia a alteração dos demais
     // campos por terceiros).
-    if (barcode && analysis.name) {
+    if (barcode && analysis.name && !body.cutoutOnly) {
       const { data: existingCatalog } = await supabase
         .from("product_catalog")
         .select("barcode, image_url, image_cutout_url")
