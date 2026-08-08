@@ -1888,16 +1888,7 @@ export default function HomeScreen() {
               <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Ex.: Leite integral" />
               {lookingUp && <ActivityIndicator color="#1E7A55" />}
             </View>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Marca</Text>
-                <TextInput style={styles.inputSolo} value={brand} onChangeText={setBrand} placeholder="Opcional" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Tipo de embalagem</Text>
-                <TextInput style={styles.inputSolo} value={packagingType} onChangeText={setPackagingType} placeholder="Ex.: Longa vida" />
-              </View>
-            </View>
+
             <Text style={styles.label}>Código de barras</Text>
             <View style={styles.barcodeRow}>
               <TextInput
@@ -1938,10 +1929,10 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
             <View style={styles.row}>
-              <View style={{ flex: 2 }}>
+              <View style={{ flex: 3 }}>
                 <Text style={styles.label}>Data de validade</Text>
                 <TextInput
-                  style={styles.inputSolo}
+                  style={[styles.inputSolo, styles.expiryInput]}
                   value={expiry}
                   onChangeText={(value) => setExpiry(maskBrazilianDate(value))}
                   keyboardType="number-pad"
@@ -2173,6 +2164,7 @@ const styles = StyleSheet.create({
   barcodeInput: { flex: 1 },
   barcodeScannerButton: { height: 50, borderRadius: 13, backgroundColor: "#1E7A55", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6 },
   barcodeScannerText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  expiryInput: { fontSize: 13, paddingHorizontal: 10 },
   categoryOptions: { gap: 7, paddingRight: 10, paddingVertical: 2 },
   categoryOption: { paddingHorizontal: 13, height: 38, borderRadius: 12, borderWidth: 1, borderColor: "#D5DDD7", backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
   categoryOptionActive: { backgroundColor: "#1E7A55", borderColor: "#1E7A55" },

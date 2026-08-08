@@ -103,9 +103,7 @@ function buildSystemPrompt(): string {
     "Responda apenas JSON válido, sem markdown, no formato:",
     JSON.stringify({
       name: "Nome do produto (ex.: Leite Integral UHT 1L)",
-      brand: "Marca ou null se não visível",
       category: "Uma das categorias listadas",
-      packagingType: "Tipo de embalagem (ex.: Longa vida, Saco plástico 5kg)",
       matches: [{ name: "Nome do produto parecido já cadastrado", similarity: 98 }],
     }),
     "matches deve conter apenas produtos da lista fornecida que sejam realmente parecidos, com similarity de 0 a 100. Se nenhum for parecido, retorne [].",
@@ -266,9 +264,7 @@ async function analyzeWithGemini(
           type: "OBJECT",
           properties: {
             name: { type: "STRING" },
-            brand: { type: "STRING" },
             category: { type: "STRING" },
-            packagingType: { type: "STRING" },
             matches: {
               type: "ARRAY",
               items: {
@@ -280,7 +276,7 @@ async function analyzeWithGemini(
               },
             },
           },
-          required: ["name", "brand", "category", "packagingType", "matches"],
+          required: ["name", "category", "matches"],
         },
       },
     }),
