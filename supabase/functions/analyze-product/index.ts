@@ -485,7 +485,12 @@ Deno.serve(async (req) => {
 
     const analysis = await analyzeImage(image, barcode, existingProducts);
 
-    const cutoutPng = await removeBackground(image);
+    // Timeout de 15 s: se a remoção de fundo demorar (Render free cold start),
+    // retorna sem fundo e o usuário pode tentar depois pelo botão do app.
+    const cutoutPng = await Promise.race([
+      removeBackground(image),
+      new Promise<Uint8Array | null>((resolve) => setTimeout(() => resolve(null), 15000)),
+    ]);
     const code = safeCode(barcode);
 
     let originalUrl: string | null = null;
