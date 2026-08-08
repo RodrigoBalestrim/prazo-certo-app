@@ -34,7 +34,7 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
-import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, replaceCloudProducts } from "@/cloudStorage";
+import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { compressImageForUpload } from "@/imageUtils";
@@ -639,6 +639,7 @@ export default function HomeScreen() {
   // Remove o fundo da foto em segundo plano, após o cadastro, e atualiza o
   // produto automaticamente quando o resultado fica pronto.
   async function processPhotoCutoutForProduct(product: Product) {
+    if (!session?.user.id) return;
     try {
       const result = await analyzeProductWithAi({
         barcode: product.barcode,
@@ -652,9 +653,25 @@ export default function HomeScreen() {
           photoCutoutUrl: result.cutoutUrl,
           imageUrl: result.cutoutUrl,
         };
-        await persist(
-          products.map((item) => (item.id === product.id ? updated : item)),
-        );
+        // Lê a lista mais recente do celular e atualiza apenas este produto —
+        // assim não apaga nada que o usuário adicionou enquanto o fundo era
+        // processado em segundo plano.
+        const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+        const latest = await loadProducts(scopeKey);
+        const index = latest.findIndex((item) => item.id === product.id);
+        if (index >= 0) {
+          latest[index] = updated;
+          setProducts(latest);
+          await saveProducts(latest, scopeKey);
+          if (!isDemo) {
+            try {
+              await updateCloudProduct(session.user.id, company?.id ?? null, updated);
+              await clearSyncPending(scopeKey);
+            } catch {
+              await markSyncPending(scopeKey);
+            }
+          }
+        }
       }
     } catch {
       // Sem internet ou serviço indisponível: mantém a foto original.

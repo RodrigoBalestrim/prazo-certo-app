@@ -146,3 +146,19 @@ export async function deleteCloudProducts(ids: string[]): Promise<void> {
   const { error } = await supabase.from("products").delete().in("id", ids);
   if (error) throw error;
 }
+
+// Atualiza apenas UM produto na nuvem (não substitui a lista inteira).
+// Usado pelo processamento de fundo em segundo plano — evita apagar
+// produtos adicionados/editados enquanto o processo roda.
+export async function updateCloudProduct(
+  userId: string,
+  organizationId: string | null,
+  product: Product,
+): Promise<void> {
+  const { error } = await supabase
+    .from("products")
+    .update(toRow(userId, organizationId, product))
+    .eq("id", product.id)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
