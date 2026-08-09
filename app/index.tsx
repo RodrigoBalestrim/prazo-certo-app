@@ -257,11 +257,16 @@ export default function HomeScreen() {
           setProducts(remoteProducts);
           await saveProducts(remoteProducts, scopeKey);
           // Sobe fotos base64 remanescentes em segundo plano (login mais rapido).
+          // Aplica so as imagens migradas na lista atual, sem sobrescrever
+          // produtos adicionados enquanto a migracao rodava.
           migrateBase64Images(session.user.id, remoteProducts)
-            .then((updated) => {
+            .then(async (updated) => {
               if (!active) return;
-              setProducts(updated);
-              saveProducts(updated, scopeKey).catch(() => undefined);
+              const byId = new Map(updated.map((item) => [item.id, item]));
+              const latest = await loadProducts(scopeKey);
+              const merged = latest.map((item) => byId.get(item.id) ?? item);
+              setProducts(merged);
+              await saveProducts(merged, scopeKey);
             })
             .catch(() => undefined);
           return;
@@ -460,7 +465,12 @@ export default function HomeScreen() {
     await saveProducts(next, scopeKey);
     if (isDemo) return;
     try {
-      await replaceCloudProducts(session.user.id, company?.id ?? null, next);
+      // Exclui na nuvem somente o que saiu da lista visivel (remocao explicita
+      // do usuario). Itens de outros aparelhos nunca sao apagados por sync.
+      const removedIds = products
+        .filter((product) => !next.some((item) => item.id === product.id))
+        .map((product) => product.id);
+      await replaceCloudProducts(session.user.id, company?.id ?? null, next, removedIds);
       await clearSyncPending(scopeKey);
     } catch {
       await markSyncPending(scopeKey);

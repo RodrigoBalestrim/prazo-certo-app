@@ -86,24 +86,12 @@ export async function replaceCloudProducts(
   userId: string,
   organizationId: string | null,
   products: Product[],
+  removedIds: string[] = [],
 ): Promise<void> {
-  // Sincronização incremental: remove apenas os produtos que saíram da lista
-  // e faz upsert dos demais. Evita apagar/reinserir tudo (e mantém a auditoria
-  // registrando apenas mudanças reais).
-  let listQuery = supabase
-    .from("products")
-    .select("id")
-    .eq("user_id", userId);
-  listQuery = organizationId
-    ? listQuery.eq("organization_id", organizationId)
-    : listQuery.is("organization_id", null);
-  const { data: existingRows, error: listError } = await listQuery;
-  if (listError) throw listError;
-
-  const existingIds = new Set((existingRows ?? []).map((row) => (row as { id: string }).id));
-  const nextIds = new Set(products.map((product) => product.id));
-  const removedIds = [...existingIds].filter((id) => !nextIds.has(id));
-
+  // Upsert apenas dos produtos recebidos. Exclusão acontece SOMENTE para os
+  // ids explícitos em removedIds (removidos pelo usuário). Nunca apaga por
+  // diferença contra a lista local: uma lista local defasada (outro aparelho,
+  // cache vazio) apagaria produtos válidos da nuvem.
   if (removedIds.length) {
     let deleteQuery = supabase.from("products").delete().in("id", removedIds);
     deleteQuery = organizationId

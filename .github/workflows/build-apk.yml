@@ -38,6 +38,14 @@ jobs:
       # IMPORTANTE: build debug por padrão NÃO embute o JS (espera o Metro).
       # Sem isso, o APK instalado sozinho fica preso na splash.
       # debuggableVariants = [] força o bundle JS dentro do APK debug.
+      # Keystore debug fixo commitado no repo: mesma assinatura em todos os
+      # builds. Sem isso, cada runner gera chave nova e instalar por cima
+      # falha (obriga desinstalar e apaga os dados locais do app).
+      - name: Usar keystore debug fixo
+        run: |
+          mkdir -p "$HOME/.android"
+          cp debug.keystore "$HOME/.android/debug.keystore"
+
       - name: Embutir bundle JS no APK debug
         run: |
           python3 - <<'EOF'
