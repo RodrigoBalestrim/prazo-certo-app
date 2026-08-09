@@ -33,7 +33,7 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
-import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
+import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { compressImageForUpload } from "@/imageUtils";
@@ -144,7 +144,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     prepareNotifications().catch(() => undefined);
-    withTimeout(supabase.auth.getSession(), 8000)
+    withTimeout(supabase.auth.getSession(), 12000)
       .then(({ data }) => {
         setSession(data.session);
       })
@@ -225,6 +225,13 @@ export default function HomeScreen() {
       try {
         const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
 
+        // Mostra a lista do cache local na hora; a nuvem atualiza em seguida.
+        const cachedSnapshot = await loadProducts(scopeKey);
+        if (active && cachedSnapshot.length) {
+          setProducts(cachedSnapshot);
+          setLoading(false);
+        }
+
         // 1) Se há produtos salvos offline, envia primeiro — evita que a lista
         // da nuvem (mais antiga) sobrescreva os produtos adicionados sem internet.
         if (await isSyncPending(scopeKey)) {
@@ -249,6 +256,14 @@ export default function HomeScreen() {
         if (remoteProducts.length) {
           setProducts(remoteProducts);
           await saveProducts(remoteProducts, scopeKey);
+          // Sobe fotos base64 remanescentes em segundo plano (login mais rapido).
+          migrateBase64Images(session.user.id, remoteProducts)
+            .then((updated) => {
+              if (!active) return;
+              setProducts(updated);
+              saveProducts(updated, scopeKey).catch(() => undefined);
+            })
+            .catch(() => undefined);
           return;
         }
 
@@ -677,9 +692,7 @@ export default function HomeScreen() {
     }
   }
 
-  // Remove o fundo da foto em segundo plano, após o cadastro, e atualiza o
-  // produto automaticamente quando o resultado fica pronto.
-  // Remove o fundo da foto em segundo plano, ap?s o cadastro, e atualiza o
+  // Remove o fundo da foto em segundo plano, apos o cadastro, e atualiza o
   // produto automaticamente quando o resultado fica pronto.
   async function processPhotoCutoutForProduct(product: Product) {
     if (!session?.user.id) return;

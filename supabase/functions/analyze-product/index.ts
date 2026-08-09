@@ -62,6 +62,34 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+// Protecao contra SSRF: a URL vem do cliente, entao so aceita HTTPS publico
+// e bloqueia IPs privados/link-local (ex.: metadata 169.254.169.254).
+function isSafeExternalUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) {
+      return false;
+    }
+    const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4) {
+      const [a, b] = ipv4.slice(1).map(Number);
+      const privateRange =
+        a === 10 ||
+        a === 127 ||
+        a === 0 ||
+        a === 169 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168);
+      if (privateRange) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function resolveImage(body: {
   imageBase64?: string;
   imageUrl?: string;
@@ -82,6 +110,7 @@ async function resolveImage(body: {
   }
 
   if (body.imageUrl) {
+    if (!isSafeExternalUrl(body.imageUrl)) return null;
     const response = await fetch(body.imageUrl);
     if (!response.ok) return null;
     const buffer = await response.arrayBuffer();
@@ -586,7 +615,6 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("analyze-product:", error);
     const message = error instanceof Error ? error.message : "Falha ao processar a imagem";
-    const stack = error instanceof Error && error.stack ? error.stack.slice(0, 600) : "";
-    return json({ error: message, stack }, 500);
+    return json({ error: message }, 500);
   }
 });

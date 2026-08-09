@@ -51,18 +51,21 @@ export function canDeleteProducts(role: CompanyRole | undefined): boolean {
 export async function loadMyCompany(): Promise<CompanyMembership | null> {
   const { data: membership, error: membershipError } = await supabase
     .from("organization_members")
-    .select("organization_id, role")
+    .select("role, organizations(id, name, company_name, sector, company_logo_url, invite_code)")
     .limit(1)
     .maybeSingle();
   if (membershipError) throw membershipError;
   if (!membership) return null;
 
-  const { data: company, error: companyError } = await supabase
-    .from("organizations")
-    .select("id, name, company_name, sector, company_logo_url, invite_code")
-    .eq("id", membership.organization_id)
-    .single();
-  if (companyError) throw companyError;
+  const company = (membership as unknown as { organizations: {
+    id: string;
+    name: string;
+    company_name: string | null;
+    sector: string | null;
+    company_logo_url: string | null;
+    invite_code: string;
+  } | null }).organizations;
+  if (!company) return null;
 
   return {
     id: company.id,

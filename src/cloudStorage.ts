@@ -155,10 +155,70 @@ export async function updateCloudProduct(
   organizationId: string | null,
   product: Product,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("products")
-    .update(toRow(userId, organizationId, product))
-    .eq("id", product.id)
-    .eq("user_id", userId);
+  const row = toRow(userId, organizationId, product);
+  if (organizationId) delete (row as { user_id?: string }).user_id;
+  let query = supabase.from("products").update(row).eq("id", product.id);
+  if (!organizationId) query = query.eq("user_id", userId);
+  const { error } = await query;
   if (error) throw error;
+}
+// Fotos base64 gravadas no banco (produtos sem codigo de barras ou com
+// recorte) sao migradas para o Storage. Reduz o payload do login.
+export async function migrateBase64Images(
+  userId: string,
+  products: Product[],
+): Promise<Product[]> {
+  const migrated: Product[] = [];
+  for (const product of products) {
+    const original = product.photoOriginalUrl;
+    const image = product.imageUrl;
+    const originalIsBase64 = Boolean(original?.startsWith("data:image/"));
+    const imageIsBase64 = Boolean(image?.startsWith("data:image/"));
+    if (!originalIsBase64 && !imageIsBase64) continue;
+
+    let uploadedUrl: string | undefined;
+    if (imageIsBase64 && originalIsBase64 && image === original) {
+      uploadedUrl = await uploadProductPhoto(userId, product.id, image as string);
+      migrated.push({ ...product, imageUrl: uploadedUrl, photoOriginalUrl: uploadedUrl });
+    } else {
+      const nextImageUrl = imageIsBase64
+        ? await uploadProductPhoto(userId, product.id, image as string)
+        : image;
+      const nextOriginalUrl = originalIsBase64
+        ? await uploadProductPhoto(userId, product.id, original as string)
+        : original;
+      migrated.push({ ...product, imageUrl: nextImageUrl, photoOriginalUrl: nextOriginalUrl });
+    }
+
+    const next = migrated[migrated.length - 1];
+    // Sem filtro de user_id: em grupo compartilhado o produto pode pertencer a
+    // outro membro (RLS valida a permissao de qualquer forma).
+    const { error } = await supabase
+      .from("products")
+      .update({
+        image_url: next.imageUrl ?? null,
+        photo_original_url: next.photoOriginalUrl ?? null,
+      })
+      .eq("id", product.id);
+    if (error) throw error;
+  }
+  return migrated;
+}
+
+async function uploadProductPhoto(userId: string, productId: string, uri: string): Promise<string> {
+  const comma = uri.indexOf(",");
+  const mime = uri.slice(5, comma).split(";")[0] || "image/jpeg";
+  const binary = atob(uri.slice(comma + 1));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const extension = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+  const path = `${userId}/${productId}.${extension}`;
+  const { error } = await supabase.storage
+    .from("product-images")
+    .upload(path, bytes.buffer, { contentType: mime, upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
 }

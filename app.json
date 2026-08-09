@@ -18,7 +18,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permita que o Prazo Certo use a cÃ¢mera para ler cÃ³digos de barras."
+          "cameraPermission": "Permita que o Prazo Certo use a câmera para ler códigos de barras."
         }
       ],
       [
@@ -53,7 +53,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 5
+      "versionCode": 18
     },
     "ios": {
       "bundleIdentifier": "com.prazocerto.app",
