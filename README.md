@@ -1,5 +1,7 @@
 # Prazo Certo
 
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=flat-square&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) ![Expo](https://img.shields.io/badge/Expo-000020?style=flat-square&logo=expo&logoColor=white) ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat-square&logo=supabase&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![React Native + Expo](https://img.shields.io/badge/Android%20%26%20Web-3DDC84?style=flat-square&logo=android&logoColor=white)
+
 Aplicativo mobile criado para controlar a validade de produtos, reduzir perdas
 e ajudar mercados, empresas e usuários domésticos a agir antes do vencimento.
 
