@@ -118,8 +118,14 @@ export function AuthScreen({ onDemo }: Props) {
       });
       if (error) throw error;
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      if (result.type !== "success") return;
+      // No Android, redirect com scheme customizado nao volta para
+      // openAuthSessionAsync - o deep link abre a tela de callback, que
+      // conclui o login. Timeout evita o botao do Google travar para sempre.
+      const result = await withTimeout(
+        WebBrowser.openAuthSessionAsync(data.url, redirectTo),
+        45000,
+      ).catch(() => null);
+      if (result?.type !== "success") return;
 
       const { params, errorCode } = QueryParams.getQueryParams(result.url);
       if (errorCode) throw new Error(errorCode);

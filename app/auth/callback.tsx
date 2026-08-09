@@ -28,7 +28,12 @@ export default function AuthCallbackScreen() {
     async function finishLogin() {
       try {
         const url = callbackUrl || await Linking.getInitialURL();
-        if (!url) throw new Error("Endereço de retorno não encontrado.");
+        if (!url) {
+          // Android (app ja aberto): o deep link pode chegar com atraso.
+          // Na primeira montagem aguarda; so erra se o usuario tentar de novo.
+          if (retryCount === 0) return;
+          throw new Error("Endereço de retorno não encontrado.");
+        }
 
         const { params, errorCode } = QueryParams.getQueryParams(url);
         if (errorCode) throw new Error(String(params.error_description || errorCode));
@@ -66,7 +71,10 @@ export default function AuthCallbackScreen() {
       }
     }
 
-    if (callbackUrl) finishLogin();
+    // Roda SEMPRE ao montar: no Android (app ja aberto) o deep link nem sempre
+    // chega no useURL() - antes, finishLogin nunca rodava e a tela ficava
+    // travada em "Concluindo seu login..." para sempre.
+    finishLogin();
   }, [callbackUrl, retryCount]);
 
   return (
