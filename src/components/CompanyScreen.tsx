@@ -2,7 +2,6 @@ import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -15,6 +14,7 @@ import {
 import { createCompany, joinCompany, loadMyCompany, CompanyMembership } from "../company";
 import { uploadCompanyLogo } from "../companyLogo";
 import { supabase } from "../supabase";
+import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 type Props = {
   onReady: (company: CompanyMembership) => void;
@@ -23,6 +23,11 @@ type Props = {
 };
 
 export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Props) {
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+
+  function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
+    setAlert({ title, message, buttons });
+  }
   const [mode, setMode] = useState<"create" | "join">(initialMode);
   const [groupName, setGroupName] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -35,7 +40,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permissao necessaria", "Permita o acesso as fotos para escolher a logo.");
+        showAlert("Permissao necessaria", "Permita o acesso as fotos para escolher a logo.");
         return;
       }
     }
@@ -59,7 +64,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
   async function submit() {
     const value = mode === "create" ? groupName.trim() : inviteCode.trim();
     if (!value) {
-      Alert.alert(
+      showAlert(
         mode === "create" ? "Informe o nome do grupo" : "Informe o código",
         mode === "create" ? "Digite um nome para identificar o grupo de lista." : "Digite o código enviado pelo administrador.",
       );
@@ -79,7 +84,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
       if (!company) throw new Error("Não foi possível abrir o grupo.");
       onReady(company);
     } catch (error) {
-      Alert.alert(
+      showAlert(
         mode === "create" ? "Não foi possível criar o grupo" : "Não foi possível entrar",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -188,6 +193,7 @@ export function CompanyScreen({ onReady, onCancel, initialMode = "create" }: Pro
           </Pressable>
         )}
       </View>
+          <AppAlert alert={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
   );
 }

@@ -7,7 +7,6 @@ import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   FlatList,
   Image,
@@ -39,6 +38,7 @@ import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany,
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { compressImageForUpload } from "@/imageUtils";
 import { supabase } from "@/supabase";
+import { AppAlert, AlertButton, AlertMessage } from "@/components/AppAlert";
 import { uploadAvatar } from "@/avatar";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -88,6 +88,11 @@ export default function HomeScreen() {
   const [companySetupOpen, setCompanySetupOpen] = useState(false);
   const [companySetupMode, setCompanySetupMode] = useState<"create" | "join">("create");
   const [menuScreen, setMenuScreen] = useState<"profile" | "notifications" | "reports" | "help" | null>(null);
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+
+  function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
+    setAlert({ title, message, buttons });
+  }
   const [profileNameDraft, setProfileNameDraft] = useState("");
   const [profilePhotoDraft, setProfilePhotoDraft] = useState("");
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>({
@@ -184,7 +189,7 @@ export default function HomeScreen() {
       .catch(() => {
         if (active) {
           setCompany(null);
-          Alert.alert(
+          showAlert(
             "Configuração do grupo pendente",
             "Atualize o banco de dados do Supabase para ativar os grupos de lista.",
           );
@@ -261,7 +266,7 @@ export default function HomeScreen() {
         const cachedProducts = await loadProducts(scopeKey);
         if (active) {
           setProducts(cachedProducts);
-          Alert.alert(
+          showAlert(
             "Sincronização pendente",
             "Não foi possível acessar o banco online. Seus produtos continuarão salvos neste celular.",
           );
@@ -338,7 +343,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
         return;
       }
     }
@@ -363,7 +368,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
         return;
       }
     }
@@ -395,7 +400,7 @@ export default function HomeScreen() {
       try {
         avatarUrl = await uploadAvatar(session.user.id, avatarUrl);
       } catch (error) {
-        Alert.alert(
+        showAlert(
           "Não foi possível enviar a foto",
           error instanceof Error ? error.message : "Tente novamente.",
         );
@@ -412,12 +417,12 @@ export default function HomeScreen() {
     } else {
       const { error } = await supabase.auth.updateUser({ data: metadata });
       if (error) {
-        Alert.alert("Não foi possível salvar", error.message);
+        showAlert("Não foi possível salvar", error.message);
         return;
       }
     }
     setMenuScreen(null);
-    Alert.alert("Perfil atualizado", "Suas informações foram salvas.");
+    showAlert("Perfil atualizado", "Suas informações foram salvas.");
   }
 
   async function saveNotificationPreferences() {
@@ -427,7 +432,7 @@ export default function HomeScreen() {
       JSON.stringify(notificationPreferences),
     );
     setMenuScreen(null);
-    Alert.alert(
+    showAlert(
       "Notificações atualizadas",
       "As preferências serão usadas nos próximos produtos cadastrados.",
     );
@@ -444,7 +449,7 @@ export default function HomeScreen() {
       await clearSyncPending(scopeKey);
     } catch {
       await markSyncPending(scopeKey);
-      Alert.alert(
+      showAlert(
         "Produto salvo no celular",
         "A sincronização online não foi concluída. Seus dados serão enviados automaticamente quando a internet voltar.",
       );
@@ -505,7 +510,7 @@ export default function HomeScreen() {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert("Câmera necessária", "Libere a câmera para ler o código de barras.");
+        showAlert("Câmera necessária", "Libere a câmera para ler o código de barras.");
         return;
       }
     }
@@ -519,7 +524,7 @@ export default function HomeScreen() {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        Alert.alert("Câmera necessária", "Libere a câmera para ler o código de barras.");
+        showAlert("Câmera necessária", "Libere a câmera para ler o código de barras.");
         return;
       }
     }
@@ -539,7 +544,7 @@ export default function HomeScreen() {
 
     const existing = products.find((item) => item.barcode === value && !item.archived);
     if (existing) {
-      Alert.alert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
+      showAlert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
         { text: "Cancelar", style: "cancel" },
         { text: "Editar", onPress: () => editProduct(existing) },
       ]);
@@ -555,7 +560,7 @@ export default function HomeScreen() {
 
     if (!foundProduct?.name && !foundProduct?.imageUrl) {
       setFormOpen(false);
-      Alert.alert(
+      showAlert(
         "Produto não encontrado",
         "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
         [
@@ -572,7 +577,7 @@ export default function HomeScreen() {
       await choosePhotoForAi(code);
       return;
     }
-    Alert.alert("Cadastro por IA", "Tire uma foto do produto ou escolha da galeria.", [
+    showAlert("Cadastro por IA", "Tire uma foto do produto ou escolha da galeria.", [
       { text: "Cancelar", style: "cancel" },
       { text: "Galeria", onPress: () => choosePhotoForAi(code) },
       { text: "Tirar foto", onPress: () => takePhotoForAi(code) },
@@ -583,7 +588,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert("Permissão necessária", "Permita o acesso às fotos para usar o cadastro por IA.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para usar o cadastro por IA.");
         return;
       }
     }
@@ -603,7 +608,7 @@ export default function HomeScreen() {
   async function takePhotoForAi(code?: string) {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Câmera necessária", "Permita o acesso à câmera para fotografar o produto.");
+      showAlert("Câmera necessária", "Permita o acesso à câmera para fotografar o produto.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -647,7 +652,7 @@ export default function HomeScreen() {
       const topMatch = result.matches?.[0];
       if (topMatch && topMatch.similarity >= 85) {
         const existing = products.find((item) => item.name === topMatch.name && !item.archived);
-        Alert.alert(
+        showAlert(
           "Produto parecido encontrado",
           `"${topMatch.name}" tem ${topMatch.similarity}% de compatibilidade com o que você fotografou. Usar o cadastro existente?`,
           [
@@ -663,7 +668,7 @@ export default function HomeScreen() {
       }
       setFormOpen(true);
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Assistente de IA indisponível",
         error instanceof Error ? error.message : "Verifique a configuração da Edge Function e tente novamente.",
       );
@@ -736,7 +741,7 @@ export default function HomeScreen() {
         existingProductNames: existingProductNames(products),
       });
       if (!result.cutoutUrl && !result.name) {
-        Alert.alert("IA indisponível", "Não foi possível processar a foto agora.");
+        showAlert("IA indisponível", "Não foi possível processar a foto agora.");
         return;
       }
       const updated: Product = {
@@ -757,14 +762,14 @@ export default function HomeScreen() {
         cutoutUrl: updated.photoCutoutUrl,
       });
 
-      Alert.alert(
+      showAlert(
         result.cutoutUrl ? "Foto processada" : "Produto atualizado",
         result.cutoutUrl
           ? "O fundo foi removido e a foto sem fundo foi salva no cadastro."
           : "Os dados do produto foram atualizados pela IA.",
       );
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Assistente de IA indisponível",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -777,15 +782,15 @@ export default function HomeScreen() {
     const parsedDate = parseBrazilianDate(expiry);
     const numericQuantity = Number(quantity);
     if (!name.trim()) {
-      Alert.alert("Informe o produto", "Digite o nome do produto.");
+      showAlert("Informe o produto", "Digite o nome do produto.");
       return;
     }
     if (!parsedDate) {
-      Alert.alert("Data inválida", "Use o formato DD/MM/AAAA.");
+      showAlert("Data inválida", "Use o formato DD/MM/AAAA.");
       return;
     }
     if (!Number.isInteger(numericQuantity) || numericQuantity < 1) {
-      Alert.alert("Quantidade inválida", "Informe um número inteiro maior que zero.");
+      showAlert("Quantidade inválida", "Informe um número inteiro maior que zero.");
       return;
     }
 
@@ -807,7 +812,7 @@ export default function HomeScreen() {
           category,
         );
       } catch {
-        Alert.alert(
+        showAlert(
           "Produto salvo sem compartilhar",
           "Não foi possível atualizar o catálogo compartilhado agora.",
         );
@@ -922,7 +927,7 @@ export default function HomeScreen() {
 
   async function removeSelectedProducts() {
     if (removingSelected) return;
-    Alert.alert(
+    showAlert(
       "Remover selecionados",
       "Deseja realmente remover os itens selecionados?",
       [
@@ -939,9 +944,9 @@ export default function HomeScreen() {
               );
               await persist(products.filter((product) => !selectedIds.has(product.id)));
               closeSelectionMode();
-              Alert.alert("Remoção concluída", "Os itens selecionados foram removidos.");
+              showAlert("Remoção concluída", "Os itens selecionados foram removidos.");
             } catch {
-              Alert.alert("Não foi possível remover", "Tente novamente.");
+              showAlert("Não foi possível remover", "Tente novamente.");
             } finally {
               setRemovingSelected(false);
             }
@@ -990,7 +995,7 @@ export default function HomeScreen() {
   async function generateSelectedPdf() {
     const selected = sorted.filter((product) => selectedIds.has(product.id));
     if (!selected.length) {
-      Alert.alert("Selecione os produtos", "Marque pelo menos um produto para gerar o PDF.");
+      showAlert("Selecione os produtos", "Marque pelo menos um produto para gerar o PDF.");
       return;
     }
 
@@ -1087,7 +1092,7 @@ export default function HomeScreen() {
       setExportingPdf(true);
       if (Platform.OS === "web") {
         await Print.printAsync({ html });
-        Alert.alert("PDF pronto", "Use a janela de impressão do navegador para salvar o PDF.");
+        showAlert("PDF pronto", "Use a janela de impressão do navegador para salvar o PDF.");
         return;
       }
       const file = await Print.printToFileAsync({ html });
@@ -1098,10 +1103,10 @@ export default function HomeScreen() {
           UTI: "com.adobe.pdf",
         });
       } else {
-        Alert.alert("PDF criado", `Arquivo salvo em: ${file.uri}`);
+        showAlert("PDF criado", `Arquivo salvo em: ${file.uri}`);
       }
     } catch {
-      Alert.alert("Não foi possível gerar o PDF", "Tente novamente em alguns instantes.");
+      showAlert("Não foi possível gerar o PDF", "Tente novamente em alguns instantes.");
     } finally {
       setExportingPdf(false);
     }
@@ -1206,12 +1211,14 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.authLoading}>
         <Image source={require("../assets/seal.png")} style={styles.authLoadingLogo} />
         <ActivityIndicator color="#FFF" />
+        <AppAlert alert={alert} onClose={() => setAlert(null)} />
       </SafeAreaView>
     );
   }
   if (companySetupOpen) {
     return (
-      <CompanyScreen
+      <>
+        <CompanyScreen
         onReady={(nextCompany) => {
           setCompany(nextCompany);
           setCompanySetupOpen(false);
@@ -1219,7 +1226,9 @@ export default function HomeScreen() {
         onCancel={() => setCompanySetupOpen(false)}
         initialMode={companySetupMode}
       />
-    );
+      <AppAlert alert={alert} onClose={() => setAlert(null)} />
+    </>
+  );
   }
 
   return (
@@ -1249,7 +1258,7 @@ export default function HomeScreen() {
               </Text>
               <Pressable
                 onPress={() =>
-                  Alert.alert(
+                  showAlert(
                     "Prazo Certo",
                     "Aplicativo para controlar a validade de produtos, reduzir perdas e agir antes do vencimento.",
                   )
@@ -2100,6 +2109,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+          <AppAlert alert={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
   );
 }

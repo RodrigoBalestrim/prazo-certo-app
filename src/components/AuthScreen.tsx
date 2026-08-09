@@ -6,7 +6,6 @@ import * as QueryParams from "expo-auth-session/build/QueryParams";
 import * as WebBrowser from "expo-web-browser";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -22,6 +21,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import { supabase } from "../supabase";
 import { uploadAvatar } from "../avatar";
+import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -53,6 +53,11 @@ function GoogleIcon() {
 }
 
 export function AuthScreen({ onDemo }: Props) {
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+
+  function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
+    setAlert({ title, message, buttons });
+  }
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [fullName, setFullName] = useState("");
   const [profilePhoto, setProfilePhoto] = useState("");
@@ -66,7 +71,7 @@ export function AuthScreen({ onDemo }: Props) {
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
         return;
       }
     }
@@ -120,7 +125,7 @@ export function AuthScreen({ onDemo }: Props) {
       });
       if (sessionError) throw sessionError;
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Não foi possível entrar com Google",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -131,15 +136,15 @@ export function AuthScreen({ onDemo }: Props) {
 
   async function submit() {
     if (creatingAccount && fullName.trim().length < 3) {
-      Alert.alert("Informe seu nome", "Digite seu nome completo para criar a conta.");
+      showAlert("Informe seu nome", "Digite seu nome completo para criar a conta.");
       return;
     }
     if (!email.trim() || password.length < 6) {
-      Alert.alert("Confira os dados", "Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
+      showAlert("Confira os dados", "Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
       return;
     }
     if (creatingAccount && password !== passwordConfirmation) {
-      Alert.alert("Senhas diferentes", "A confirmação deve ser igual à senha informada.");
+      showAlert("Senhas diferentes", "A confirmação deve ser igual à senha informada.");
       return;
     }
 
@@ -158,7 +163,7 @@ export function AuthScreen({ onDemo }: Props) {
     setBusy(false);
 
     if (result.error) {
-      Alert.alert("Não foi possível entrar", result.error.message);
+      showAlert("Não foi possível entrar", result.error.message);
       return;
     }
     if (creatingAccount && profilePhoto && result.data.user) {
@@ -172,25 +177,25 @@ export function AuthScreen({ onDemo }: Props) {
           );
         }
       } catch {
-        Alert.alert(
+        showAlert(
           "Conta criada",
           "A conta foi criada, mas a foto não pôde ser enviada agora. Você poderá adicioná-la pelo perfil.",
         );
       }
     }
     if (creatingAccount && !result.data.session) {
-      Alert.alert("Confirme seu e-mail", "Enviamos uma mensagem para confirmar sua conta. Depois, volte e entre no aplicativo.");
+      showAlert("Confirme seu e-mail", "Enviamos uma mensagem para confirmar sua conta. Depois, volte e entre no aplicativo.");
       setCreatingAccount(false);
     }
   }
 
   async function resetPassword() {
     if (!email.trim()) {
-      Alert.alert("Informe seu e-mail", "Digite o e-mail da sua conta primeiro.");
+      showAlert("Informe seu e-mail", "Digite o e-mail da sua conta primeiro.");
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-    Alert.alert(
+    showAlert(
       error ? "Não foi possível enviar" : "E-mail enviado",
       error?.message || "Confira sua caixa de entrada para recuperar a senha.",
     );
@@ -366,6 +371,7 @@ export function AuthScreen({ onDemo }: Props) {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+          <AppAlert alert={alert} onClose={() => setAlert(null)} />
     </SafeAreaView>
   );
 }

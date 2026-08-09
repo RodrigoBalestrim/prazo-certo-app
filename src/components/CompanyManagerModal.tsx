@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -29,6 +28,7 @@ import {
 } from "../company";
 import { uploadCompanyLogo } from "../companyLogo";
 import { compressImageForUpload } from "../imageUtils";
+import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 type Props = {
   visible: boolean;
@@ -39,6 +39,11 @@ type Props = {
 };
 
 export function CompanyManagerModal({ visible, company, currentUserId, onClose, onCompanyChange }: Props) {
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+
+  function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
+    setAlert({ title, message, buttons });
+  }
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null);
@@ -52,7 +57,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
     try {
       setMembers(await loadCompanyMembers());
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Não foi possível carregar a equipe",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -84,7 +89,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
   }
 
   function confirmRemove(member: CompanyMember) {
-    Alert.alert(
+    showAlert(
       "Remover participante",
       `Deseja remover ${member.name} deste grupo?`,
       [
@@ -97,7 +102,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
               await removeCompanyMember(member.userId);
               await refresh();
             } catch (error) {
-              Alert.alert(
+              showAlert(
                 "Não foi possível remover",
                 error instanceof Error ? error.message : "Tente novamente.",
               );
@@ -115,7 +120,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
       await updateMemberRole(member.userId, role);
       await refresh();
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Não foi possível alterar a função",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -131,7 +136,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
       await setMemberActive(member.userId, !member.active);
       await refresh();
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Não foi possível alterar o status",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -144,7 +149,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permissão necessária", "Permita o acesso às fotos para escolher a logo.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher a logo.");
         return;
       }
     }
@@ -165,9 +170,9 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
       const uploadedUrl = await uploadCompanyLogo(currentUserId, await compressImageForUpload(uri));
       await updateCompany({ logoUrl: uploadedUrl });
       await refreshCompany();
-      Alert.alert("Logo atualizada", "A logo da empresa foi salva com sucesso.");
+      showAlert("Logo atualizada", "A logo da empresa foi salva com sucesso.");
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Não foi possível enviar a logo",
         error instanceof Error ? error.message : "Tente novamente.",
       );
@@ -177,7 +182,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
   }
 
   function confirmRemoveLogo() {
-    Alert.alert(
+    showAlert(
       "Remover logo",
       "Deseja remover a logo da empresa? O Prazo Certo voltará a usar a logo padrão.",
       [
@@ -191,7 +196,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
               await removeCompanyLogo();
               await refreshCompany();
             } catch (error) {
-              Alert.alert(
+              showAlert(
                 "Não foi possível remover",
                 error instanceof Error ? error.message : "Tente novamente.",
               );
@@ -205,7 +210,8 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <>
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.safe}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.backButton}>
@@ -328,6 +334,8 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
         )}
       </View>
     </Modal>
+      <AppAlert alert={alert} onClose={() => setAlert(null)} />
+    </>
   );
 }
 

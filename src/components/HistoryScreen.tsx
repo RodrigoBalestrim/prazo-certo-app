@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { formatBrazilianDate, parseBrazilianDate } from "../date";
 import { PRODUCT_CATEGORIES, Product } from "../types";
+import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 type Props = {
   visible: boolean;
@@ -23,6 +23,11 @@ type Props = {
 };
 
 export function HistoryScreen({ visible, load, canDelete, onDelete, onClose }: Props) {
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+
+  function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
+    setAlert({ title, message, buttons });
+  }
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -71,7 +76,7 @@ export function HistoryScreen({ visible, load, canDelete, onDelete, onClose }: P
   }, [items, search, sector, periodStart, periodEnd]);
 
   function confirmDelete(product: Product) {
-    Alert.alert(
+    showAlert(
       "Excluir do histórico",
       `Deseja excluir definitivamente "${product.name}"? Esta ação não pode ser desfeita.`,
       [
@@ -85,7 +90,7 @@ export function HistoryScreen({ visible, load, canDelete, onDelete, onClose }: P
               await onDelete(product);
               await refresh();
             } catch (error) {
-              Alert.alert(
+              showAlert(
                 "Não foi possível excluir",
                 error instanceof Error ? error.message : "Tente novamente.",
               );
@@ -99,7 +104,8 @@ export function HistoryScreen({ visible, load, canDelete, onDelete, onClose }: P
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <>
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.safe}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.backButton}>
@@ -207,6 +213,8 @@ export function HistoryScreen({ visible, load, canDelete, onDelete, onClose }: P
         )}
       </View>
     </Modal>
+      <AppAlert alert={alert} onClose={() => setAlert(null)} />
+    </>
   );
 }
 
