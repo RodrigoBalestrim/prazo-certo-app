@@ -41,6 +41,16 @@ import { compressImageForUpload } from "@/imageUtils";
 import { supabase } from "@/supabase";
 import { uploadAvatar } from "@/avatar";
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 export default function HomeScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -129,10 +139,16 @@ export default function HomeScreen() {
 
   useEffect(() => {
     prepareNotifications().catch(() => undefined);
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setAuthLoading(false);
-    });
+    withTimeout(supabase.auth.getSession(), 8000)
+      .then(({ data }) => {
+        setSession(data.session);
+      })
+      .catch(() => {
+        setSession(null);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setAuthLoading(false);
@@ -161,7 +177,7 @@ export default function HomeScreen() {
 
     let active = true;
     setCompanyLoading(true);
-    loadMyCompany()
+    withTimeout(loadMyCompany(), 8000)
       .then((value) => {
         if (active) setCompany(value);
       })
