@@ -1,7 +1,8 @@
-# Mantém a API de remoção de fundo (Render free) acordada.
-# O Render free dorme após ~15 min sem tráfego; este ping a cada 10 min
-# evita o cold start (que levava 30-60s).
-name: Keep BG API warm
+# Mantem acordadas as APIs gratuitas:
+# - Render free (remocao de fundo) dorme apos ~15 min sem trafego.
+# - Supabase Free hiberna/fria apos ficar ocioso; cold start deixa o
+#   login lento (primeira chamada demora). Ping a cada 10 min evita.
+name: Keep APIs warm
 
 on:
   schedule:
@@ -14,3 +15,12 @@ jobs:
     steps:
       - name: Ping Background Removal API
         run: curl -fsS "https://prazo-certo-app.onrender.com/" > /dev/null || true
+
+      - name: Ping Supabase (GoTrue/auth)
+        run: curl -fsS "https://lranrivzxemkwybtnvww.supabase.co/auth/v1/health" > /dev/null || true
+
+      - name: Ping Supabase (PostgREST/DB)
+        run: |
+          curl -fsS "https://lranrivzxemkwybtnvww.supabase.co/rest/v1/products?select=id&limit=1" \
+            -H "apikey: sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP" \
+            -H "Authorization: Bearer sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP" > /dev/null || true
