@@ -35,9 +35,36 @@ jobs:
       - name: Gerar projeto Android (prebuild)
         run: npx expo prebuild --platform android --no-install
 
+      # IMPORTANTE: build debug por padrão NÃO embute o JS (espera o Metro).
+      # Sem isso, o APK instalado sozinho fica preso na splash.
+      - name: Embutir bundle JS no APK debug
+        run: |
+          python3 - <<'EOF'
+          p = "android/app/build.gradle"
+          s = open(p, encoding="utf-8").read()
+          if "bundleInDebug" not in s:
+              s = s.replace("react {", "react {\n        bundleInDebug = true", 1)
+              open(p, "w", encoding="utf-8").write(s)
+              print("patched: bundleInDebug = true")
+          else:
+              print("ja configurado")
+          EOF
+
       - name: Compilar APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
+
+      - name: Verificar JS embutido no APK
+        run: |
+          python3 - <<'EOF'
+          import glob, zipfile
+          apk = glob.glob("android/app/build/outputs/apk/debug/*.apk")[0]
+          names = zipfile.ZipFile(apk).namelist()
+          ok = any(n.startswith("assets/") and (n.endswith(".bundle") or n.endswith(".hbc")) for n in names)
+          print("bundle JS presente:", ok)
+          if not ok:
+              raise SystemExit("APK sem bundle JS - app nao abre")
+          EOF
 
       - name: Enviar APK
         uses: actions/upload-artifact@v4
