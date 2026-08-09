@@ -37,15 +37,16 @@ jobs:
 
       # IMPORTANTE: build debug por padrão NÃO embute o JS (espera o Metro).
       # Sem isso, o APK instalado sozinho fica preso na splash.
+      # debuggableVariants = [] força o bundle JS dentro do APK debug.
       - name: Embutir bundle JS no APK debug
         run: |
           python3 - <<'EOF'
           p = "android/app/build.gradle"
           s = open(p, encoding="utf-8").read()
-          if "bundleInDebug" not in s:
-              s = s.replace("react {", "react {\n        bundleInDebug = true", 1)
+          if "debuggableVariants = []" not in s:
+              s = s.replace("react {", "react {\n        debuggableVariants = []", 1)
               open(p, "w", encoding="utf-8").write(s)
-              print("patched: bundleInDebug = true")
+              print("patched: debuggableVariants = []")
           else:
               print("ja configurado")
           EOF
