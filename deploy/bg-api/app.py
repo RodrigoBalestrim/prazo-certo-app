@@ -1,14 +1,14 @@
 # Prazo Certo - API gratuita de remoção de fundo
 # Pipeline reconstruída no padrão do projeto nadermx/backgroundremover:
-#   - Modelo U^2-Net leve (u2netp) via ONNX Runtime
-#   - Sigmoid ÚNICO na saída (o ONNX do rembg já vem com sigmoid; aplicar
-#     sigmoid de novo comprime a máscara para ~0.5-0.73 e o fundo fica
-#     semitransparente - era esse o bug do "fundo não foi removido")
-#   - Pós-processamento com scikit-image (igual ao nadermx):
-#       remove objetos pequenos, fecha buracos, abre/fecha morfológico
-#   - Suavização de borda (feathering) para alpha sem serrilhado
+#   - Modelo U^2-Net leve (u2netp) via ONNX Runtime (mesmos pesos do u2netp.pth)
+#   - Pré-processamento: 320x320 + (x/255 - mean)/std (igual data_loader.ToTensorLab)
+#   - Inferência: pega a saída d1 e aplica normalização MIN-MAX (função norm_pred
+#     do nadermx) - NÃO usa sigmoid nem threshold fixo. Isso é o que faz o corte
+#     funcionar: o ponto mais forte vira 255 (opaco) e o mais fraco vira 0.
+#   - Cutout direto (naive_cutout): máscara vira canal alfa, sem morfologia.
 # Inferência leve: cabe no Render free (512 MB).
 
+import base64
 import io
 import os
 
@@ -16,14 +16,12 @@ import numpy as np
 import uvicorn
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image
-from scipy.ndimage import gaussian_filter
-from skimage import morphology
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/u2netp.onnx")
 
-app = FastAPI(title="Prazo Certo Background Removal", version="3.0.0")
+app = FastAPI(title="Prazo Certo Background Removal", version="3.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,31 +46,20 @@ def get_session():
 
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-THRESHOLD = 0.4
 
 
-def _post_process(mask: np.ndarray) -> np.ndarray:
-    """Pós-processamento no estilo nadermx/backgroundremover (scikit-image)."""
-    binary = mask > THRESHOLD
-
-    # Remove manchas pequenas fora do produto e buracos dentro dele
-    binary = morphology.remove_small_objects(binary, min_size=300)
-    binary = morphology.remove_small_holes(binary, area_threshold=300)
-
-    # Fecha e abre morfológico: borda contínua sem pontas soltas
-    binary = morphology.binary_closing(binary, footprint=morphology.disk(2))
-    binary = morphology.binary_opening(binary, footprint=morphology.disk(1))
-
-    # Feathering: desfoca a borda do alpha para não ficar serrilhado
-    soft = gaussian_filter(binary.astype(np.float32), sigma=1.2)
-    return np.clip(soft, 0.0, 1.0).astype(np.float32)
+def _norm_pred(out: np.ndarray) -> np.ndarray:
+    """Equivalente ao norm_pred do nadermx: normalização min-max."""
+    lo = float(out.min())
+    hi = float(out.max())
+    if hi - lo < 1e-6:
+        hi = lo + 1.0
+    return (out - lo) / (hi - lo)
 
 
-def remove_background(image_bytes: bytes) -> bytes:
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+def _predict_mask(img: Image.Image) -> Image.Image:
+    """Retorna máscara L (0-255) no tamanho original, pipeline nadermx."""
     original_size = img.size
-
-    # Pré-processamento U2-Net: 320x320 + normalização
     resized = img.resize((320, 320), Image.BILINEAR)
     x = np.asarray(resized, dtype=np.float32) / 255.0
     x = (x - MEAN) / STD
@@ -84,17 +71,18 @@ def remove_background(image_bytes: bytes) -> bytes:
     if out.ndim != 2:
         out = out[0]
 
-    # O u2netp.onnx do rembg já retorna sigmoid (0..1).
-    # Só aplica sigmoid de novo se a saída for logit bruto (fora de [0,1]).
-    if out.min() < -0.01 or out.max() > 1.01:
-        out = 1.0 / (1.0 + np.exp(-out))
-
-    mask = _post_process(out)
+    mask = _norm_pred(out)
     mask_img = Image.fromarray((mask * 255.0).astype(np.uint8), mode="L")
-    mask_img = mask_img.resize(original_size, Image.LANCZOS)
+    return mask_img.resize(original_size, Image.LANCZOS)
 
+
+def remove_background(image_bytes: bytes) -> bytes:
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    mask = _predict_mask(img)
+
+    # naive_cutout: aplica a máscara como canal alfa
     rgba = img.convert("RGBA")
-    rgba.putalpha(mask_img)
+    rgba.putalpha(mask)
 
     buffer = io.BytesIO()
     rgba.save(buffer, format="PNG", optimize=True)
@@ -122,6 +110,37 @@ async def remover_fundo(file: UploadFile = File(...)):
         media_type="image/png",
         headers={"Content-Disposition": "attachment; filename=sem_fundo.png"},
     )
+
+
+@app.post("/debug/")
+async def debug(file: UploadFile = File(...)):
+    """Diagnóstico: estatísticas da máscara + preview em base64 (256px)."""
+    dados = await file.read()
+    if not dados:
+        return {"erro": "Arquivo vazio"}
+
+    try:
+        img = Image.open(io.BytesIO(dados)).convert("RGB")
+        mask = _predict_mask(img)
+
+        arr = np.asarray(mask, dtype=np.float32) / 255.0
+        stats = {
+            "tamanho_original": list(img.size),
+            "mask_min": float(arr.min()),
+            "mask_max": float(arr.max()),
+            "mask_media": float(arr.mean()),
+            "pct_opaco_gt_0.5": float((arr > 0.5).mean() * 100.0),
+            "pct_transparente_lt_0.1": float((arr < 0.1).mean() * 100.0),
+        }
+
+        preview = mask.resize((256, 256), Image.LANCZOS)
+        buf = io.BytesIO()
+        preview.save(buf, format="PNG")
+        preview_b64 = base64.b64encode(buf.getvalue()).decode()
+
+        return JSONResponse(content={"stats": stats, "mask_preview_png": preview_b64})
+    except Exception as exc:  # noqa: BLE001
+        return {"erro": f"Falha ao processar: {exc}"}
 
 
 if __name__ == "__main__":
