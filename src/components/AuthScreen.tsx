@@ -25,6 +25,16 @@ import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 WebBrowser.maybeCompleteAuthSession();
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); },
+    );
+  });
+}
+
 type Props = {
   onDemo?: () => void;
 };
@@ -149,8 +159,8 @@ export function AuthScreen({ onDemo }: Props) {
     }
 
     setBusy(true);
-    const result = creatingAccount
-      ? await supabase.auth.signUp({
+    const authCall = creatingAccount
+      ? supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -159,8 +169,18 @@ export function AuthScreen({ onDemo }: Props) {
             },
           },
         })
-      : await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      : supabase.auth.signInWithPassword({ email: email.trim(), password });
+    // Timeout de 25s: servidor frio (plano Free) pode demorar na 1a chamada.
+    // Sem limite, o spinner fica infinito e o usuario fecha o app.
+    const result = await withTimeout(authCall, 25000).catch(() => null);
     setBusy(false);
+    if (!result) {
+      showAlert(
+        "A conexão demorou",
+        "O servidor não respondeu. Tente novamente em instantes.",
+      );
+      return;
+    }
 
     if (result.error) {
       showAlert("Não foi possível entrar", result.error.message);
