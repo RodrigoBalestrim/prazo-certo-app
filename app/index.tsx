@@ -674,43 +674,55 @@ export default function HomeScreen() {
 
   // Remove o fundo da foto em segundo plano, após o cadastro, e atualiza o
   // produto automaticamente quando o resultado fica pronto.
+  // Remove o fundo da foto em segundo plano, ap?s o cadastro, e atualiza o
+  // produto automaticamente quando o resultado fica pronto.
   async function processPhotoCutoutForProduct(product: Product) {
     if (!session?.user.id) return;
-    try {
-      const result = await analyzeProductWithAi({
-        barcode: product.barcode,
-        imageUri: product.photoOriginalUrl || product.imageUrl || "",
-        existingProductNames: existingProductNames(products),
-        cutoutOnly: true,
-      });
-      if (result.cutoutUrl) {
-        const updated: Product = {
-          ...product,
-          photoCutoutUrl: result.cutoutUrl,
-          imageUrl: result.cutoutUrl,
-        };
-        // Lê a lista mais recente do celular e atualiza apenas este produto —
-        // assim não apaga nada que o usuário adicionou enquanto o fundo era
-        // processado em segundo plano.
-        const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
-        const latest = await loadProducts(scopeKey);
-        const index = latest.findIndex((item) => item.id === product.id);
-        if (index >= 0) {
-          latest[index] = updated;
-          setProducts(latest);
-          await saveProducts(latest, scopeKey);
-          if (!isDemo) {
-            try {
-              await updateCloudProduct(session.user.id, company?.id ?? null, updated);
-              await clearSyncPending(scopeKey);
-            } catch {
-              await markSyncPending(scopeKey);
+    const photoUri = product.photoOriginalUrl || product.imageUrl || "";
+    // S? tenta se a Edge Function conseguir baixar a foto (URL remota ou data URI).
+    if (!/^(https?:|data:image\/)/.test(photoUri)) return;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const result = await analyzeProductWithAi({
+          barcode: product.barcode,
+          imageUri: photoUri,
+          existingProductNames: existingProductNames(products),
+          cutoutOnly: true,
+        });
+        if (result.cutoutUrl) {
+          const updated: Product = {
+            ...product,
+            photoCutoutUrl: result.cutoutUrl,
+            imageUrl: result.cutoutUrl,
+          };
+          // L? a lista mais recente do celular e atualiza apenas este produto ?
+          // assim n?o apaga nada que o usu?rio adicionou enquanto o fundo era
+          // processado em segundo plano.
+          const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+          const latest = await loadProducts(scopeKey);
+          const index = latest.findIndex((item) => item.id === product.id);
+          if (index >= 0) {
+            latest[index] = updated;
+            setProducts(latest);
+            await saveProducts(latest, scopeKey);
+            if (!isDemo) {
+              try {
+                await updateCloudProduct(session.user.id, company?.id ?? null, updated);
+                await clearSyncPending(scopeKey);
+              } catch {
+                await markSyncPending(scopeKey);
+              }
             }
           }
+          return;
         }
+        // Ainda sem resultado: se foi a 1? tentativa, espera e tenta de novo
+        // (cobre o cold start do servi?o de fundo).
+        if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 4000));
+      } catch {
+        if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 4000));
       }
-    } catch {
-      // Sem internet ou serviço indisponível: mantém a foto original.
     }
   }
 

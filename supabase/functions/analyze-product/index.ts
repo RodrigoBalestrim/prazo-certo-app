@@ -365,25 +365,29 @@ async function removeBackgroundWithGemini(image: ImageSource): Promise<Uint8Arra
 
 async function removeBackgroundWithSelfHosted(image: ImageSource): Promise<Uint8Array | null> {
   if (!BG_API_URL) return null;
-  try {
-    const form = new FormData();
-    form.append(
-      "file",
-      new Blob([image.bytes], { type: image.mime }),
-      "product.jpg",
-    );
-    form.append("visualizar", "false");
-    const response = await fetch(`${BG_API_URL.replace(/\/$/, "")}/remover-fundo/`, {
-      method: "POST",
-      body: form,
-    });
-    if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength === 0) return null;
-    return new Uint8Array(buffer);
-  } catch {
-    return null;
+  const url = `${BG_API_URL.replace(/\/$/, "")}/remover-fundo/`;
+  // Render free pode responder 502 na primeira chamada (cold start).
+  // Tenta at? 3x com pequena espera entre as tentativas.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const form = new FormData();
+      form.append(
+        "file",
+        new Blob([image.bytes], { type: image.mime }),
+        "product.jpg",
+      );
+      form.append("visualizar", "false");
+      const response = await fetch(url, { method: "POST", body: form });
+      if (response.ok) {
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength > 0) return new Uint8Array(buffer);
+      }
+    } catch {
+      // rede ou limite: tenta de novo
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2500));
   }
+  return null;
 }
 
 async function removeBackground(image: ImageSource): Promise<Uint8Array | null> {
@@ -495,7 +499,7 @@ Deno.serve(async (req) => {
       ? null
       : await Promise.race([
           removeBackground(image),
-          new Promise<Uint8Array | null>((resolve) => setTimeout(() => resolve(null), 75000)),
+          new Promise<Uint8Array | null>((resolve) => setTimeout(() => resolve(null), 55000)),
         ]);
     const code = safeCode(barcode);
 
