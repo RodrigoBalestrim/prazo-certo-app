@@ -1932,15 +1932,15 @@ export default function HomeScreen() {
                 <View style={styles.cardBody}>
                   <View style={styles.cardTop}>
                     <Text style={styles.productName}>{item.name}</Text>
-                    <Text style={[styles.badge, { color, backgroundColor: `${color}14` }]}>{expiryLabel(days)}</Text>
-                  </View>
-                  <View style={styles.expiryRow}>
-                    <Text style={styles.expiry}>Validade: {formatBrazilianDate(item.expiresAt)}</Text>
                     {rolePermissions.canAdd && !selectionMode ? (
                       <Pressable style={styles.cardEditButton} onPress={() => editProduct(item)}>
                         <Text style={styles.cardEditText}>✎</Text>
                       </Pressable>
                     ) : null}
+                    <Text style={[styles.badge, { color, backgroundColor: `${color}14` }]}>{expiryLabel(days)}</Text>
+                  </View>
+                  <View style={styles.expiryRow}>
+                    <Text style={styles.expiry}>Validade: {formatBrazilianDate(item.expiresAt)}</Text>
                   </View>
                   {days < 0 && (
                     <Text style={styles.expiredRemovalNotice}>âš  Remover da seÃ§Ã£o</Text>
@@ -2370,7 +2370,7 @@ const styles = StyleSheet.create({
   imagePlaceholder: { width: 62, height: 72, borderRadius: 12, marginLeft: 10, alignSelf: "center", alignItems: "center", justifyContent: "center", backgroundColor: "#F1F3EF" },
   imagePlaceholderText: { color: "#A2ACA5", fontSize: 24 },
   cardBody: { flex: 1, padding: 16 },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
+  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   productName: { flex: 1, fontSize: 17, fontWeight: "700", color: "#243D34" },
   badge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   expiryRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
@@ -2382,7 +2382,7 @@ const styles = StyleSheet.create({
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
-  cardEditButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  cardEditButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center" },
   cardEditText: { color: "#2E7D53", fontSize: 17, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },
