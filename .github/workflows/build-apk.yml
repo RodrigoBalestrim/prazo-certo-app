@@ -13,6 +13,7 @@ jobs:
     env:
       EXPO_PUBLIC_SUPABASE_URL: https://lranrivzxemkwybtnvww.supabase.co
       EXPO_PUBLIC_SUPABASE_KEY: sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP
+      EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

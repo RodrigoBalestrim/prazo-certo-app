@@ -4,6 +4,7 @@ import { makeRedirectUri } from "expo-auth-session";
 import * as ImagePicker from "expo-image-picker";
 import * as QueryParams from "expo-auth-session/build/QueryParams";
 import * as WebBrowser from "expo-web-browser";
+import Constants from "expo-constants";
 import {
   ActivityIndicator,
   Image,
@@ -398,6 +399,10 @@ export function AuthScreen({ onDemo }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
           <AppAlert alert={alert} onClose={() => setAlert(null)} />
+          <Text style={styles.buildTag}>
+            {Constants.expoConfig?.version || "2.0.0"} ·{" "}
+            {String(process.env.EXPO_PUBLIC_BUILD_SHA || "dev").slice(0, 7)}
+          </Text>
     </SafeAreaView>
   );
 }
@@ -438,6 +443,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.65 },
   link: { color: "#267554", textAlign: "center", fontWeight: "700", marginTop: 16 },
   switchText: { color: "#53665C", textAlign: "center", fontWeight: "700", marginTop: 18 },
+  buildTag: { position: "absolute", right: 10, bottom: 6, color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: "600" },
   signupPrompt: { marginTop: 20, paddingTop: 17, borderTopWidth: 1, borderTopColor: "#DCE3DE", alignItems: "center" },
   signupQuestion: { color: "#66776E", fontSize: 12, fontWeight: "600", marginTop: 9 },
   signupButton: { width: "100%", height: 49, borderRadius: 14, borderWidth: 2, borderColor: "#23845D", backgroundColor: "#EAF5EF", alignItems: "center", justifyContent: "center" },

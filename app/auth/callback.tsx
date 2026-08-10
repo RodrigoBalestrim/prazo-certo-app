@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 import * as Linking from "expo-linking";
+import Constants from "expo-constants";
 import * as QueryParams from "expo-auth-session/build/QueryParams";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "@/supabase";
@@ -22,6 +23,13 @@ export default function AuthCallbackScreen() {
   const [message, setMessage] = useState("Concluindo seu login...");
   const [failed, setFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  // Depois de 15s sem o deep link chegar, sai do modo "aguardando" e
+  // mostra o erro - a tela nunca fica presa para sempre.
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [retryCount]);
   const callbackUrl = Linking.useURL();
   const routeParams = useLocalSearchParams<Record<string, string | string[]>>();
   const routeParamsKey = JSON.stringify(routeParams);
@@ -53,10 +61,8 @@ export default function AuthCallbackScreen() {
         const refreshToken = String(params.refresh_token || "");
         const code = String(params.code || "");
         if (!accessToken && !refreshToken && !code) {
-          // Android (app ja aberto): o deep link pode chegar com atraso.
-          // Na primeira montagem aguarda; so erra se o usuario tentar de novo.
-          if (retryCount === 0) return;
-          throw new Error("Endereço de retorno não encontrado.");
+          if (!timedOut && retryCount === 0) return; // aguarda o deep link
+          throw new Error("O retorno do Google não chegou. Tente novamente.");
         }
 
         // Timeout de 20s: o projeto Free do Supabase hiberna e a primeira
@@ -92,7 +98,7 @@ export default function AuthCallbackScreen() {
     // chega no useURL() - antes, finishLogin nunca rodava e a tela ficava
     // travada em "Concluindo seu login..." para sempre.
     finishLogin();
-  }, [callbackUrl, retryCount, routeParamsKey]);
+  }, [callbackUrl, retryCount, routeParamsKey, timedOut]);
 
   return (
     <SafeAreaView style={styles.page}>
@@ -110,6 +116,10 @@ export default function AuthCallbackScreen() {
           <Text style={styles.retryText}>TENTAR NOVAMENTE</Text>
         </Pressable>
       ) : null}
+      <Text style={styles.buildTag}>
+        {Constants.expoConfig?.version || "2.0.0"} ·{" "}
+        {String(process.env.EXPO_PUBLIC_BUILD_SHA || "dev").slice(0, 7)}
+      </Text>
     </SafeAreaView>
   );
 }
@@ -143,4 +153,5 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.5,
   },
+  buildTag: { position: "absolute", right: 10, bottom: 6, color: "rgba(255,255,255,0.35)", fontSize: 9, fontWeight: "600" },
 });
