@@ -1,4 +1,4 @@
-﻿import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
@@ -116,7 +116,7 @@ export default function HomeScreen() {
     session?.user.user_metadata?.full_name ||
     session?.user.user_metadata?.name ||
     session?.user.email?.split("@")[0] ||
-    "UsuÃ¡rio";
+    "Usuário";
   const profilePhoto =
     session?.user.user_metadata?.avatar_url ||
     session?.user.user_metadata?.picture ||
@@ -191,7 +191,7 @@ export default function HomeScreen() {
         if (active) {
           setCompany(null);
           showAlert(
-            "ConfiguraÃ§Ã£o do grupo pendente",
+            "Configuração do grupo pendente",
             "Atualize o banco de dados do Supabase para ativar os grupos de lista.",
           );
         }
@@ -233,7 +233,7 @@ export default function HomeScreen() {
           setLoading(false);
         }
 
-        // 1) Se hÃ¡ produtos salvos offline, envia primeiro â€” evita que a lista
+        // 1) Se há produtos salvos offline, envia primeiro — evita que a lista
         // da nuvem (mais antiga) sobrescreva os produtos adicionados sem internet.
         if (await isSyncPending(scopeKey)) {
           const localPending = await loadProducts(scopeKey);
@@ -288,8 +288,8 @@ export default function HomeScreen() {
         if (active) {
           setProducts(cachedProducts);
           showAlert(
-            "SincronizaÃ§Ã£o pendente",
-            "NÃ£o foi possÃ­vel acessar o banco online. Seus produtos continuarÃ£o salvos neste celular.",
+            "Sincronização pendente",
+            "Não foi possível acessar o banco online. Seus produtos continuarão salvos neste celular.",
           );
         }
       } finally {
@@ -326,7 +326,7 @@ export default function HomeScreen() {
             setProducts(latest);
             await saveProducts(latest, `${session.user.id}/${company?.id ?? "personal"}`);
           } catch {
-            // MantÃ©m a lista atual quando a atualizaÃ§Ã£o em tempo real falhar.
+            // Mantém a lista atual quando a atualização em tempo real falhar.
           }
         },
       )
@@ -367,7 +367,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        showAlert("PermissÃ£o necessÃ¡ria", "Permita o acesso Ã s fotos para escolher uma imagem.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
         return;
       }
     }
@@ -392,7 +392,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        showAlert("PermissÃ£o necessÃ¡ria", "Permita o acesso Ã s fotos para escolher uma imagem.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
         return;
       }
     }
@@ -425,7 +425,7 @@ export default function HomeScreen() {
         avatarUrl = await uploadAvatar(session.user.id, avatarUrl);
       } catch (error) {
         showAlert(
-          "NÃ£o foi possÃ­vel enviar a foto",
+          "Não foi possível enviar a foto",
           error instanceof Error ? error.message : "Tente novamente.",
         );
         return;
@@ -441,12 +441,12 @@ export default function HomeScreen() {
     } else {
       const { error } = await supabase.auth.updateUser({ data: metadata });
       if (error) {
-        showAlert("NÃ£o foi possÃ­vel salvar", error.message);
+        showAlert("Não foi possível salvar", error.message);
         return;
       }
     }
     setMenuScreen(null);
-    showAlert("Perfil atualizado", "Suas informaÃ§Ãµes foram salvas.");
+    showAlert("Perfil atualizado", "Suas informações foram salvas.");
   }
 
   async function saveNotificationPreferences() {
@@ -457,8 +457,8 @@ export default function HomeScreen() {
     );
     setMenuScreen(null);
     showAlert(
-      "NotificaÃ§Ãµes atualizadas",
-      "As preferÃªncias serÃ£o usadas nos prÃ³ximos produtos cadastrados.",
+      "Notificações atualizadas",
+      "As preferências serão usadas nos próximos produtos cadastrados.",
     );
   }
 
@@ -480,7 +480,7 @@ export default function HomeScreen() {
       await markSyncPending(scopeKey);
       showAlert(
         "Produto salvo no celular",
-        "A sincronizaÃ§Ã£o online nÃ£o foi concluÃ­da. Seus dados serÃ£o enviados automaticamente quando a internet voltar.",
+        "A sincronização online não foi concluída. Seus dados serão enviados automaticamente quando a internet voltar.",
       );
     }
   }
@@ -497,7 +497,7 @@ export default function HomeScreen() {
       }
       await clearSyncPending(scopeKey);
     } catch {
-      // Sem internet ainda; tenta novamente na prÃ³xima ativaÃ§Ã£o do app.
+      // Sem internet ainda; tenta novamente na próxima ativação do app.
     }
   }
 
@@ -539,7 +539,7 @@ export default function HomeScreen() {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        showAlert("CÃ¢mera necessÃ¡ria", "Libere a cÃ¢mera para ler o cÃ³digo de barras.");
+        showAlert("Câmera necessária", "Libere a câmera para ler o código de barras.");
         return;
       }
     }
@@ -547,13 +547,13 @@ export default function HomeScreen() {
     setScannerOpen(true);
   }
 
-  // Abre a cÃ¢mera a partir do campo "CÃ³digo de barras" do formulÃ¡rio:
+  // Abre a câmera a partir do campo "Código de barras" do formulário:
   // ao escanear, apenas preenche o campo sem abrir o fluxo completo.
   async function openFieldScanner() {
     if (!permission?.granted) {
       const result = await requestPermission();
       if (!result.granted) {
-        showAlert("CÃ¢mera necessÃ¡ria", "Libere a cÃ¢mera para ler o cÃ³digo de barras.");
+        showAlert("Câmera necessária", "Libere a câmera para ler o código de barras.");
         return;
       }
     }
@@ -573,7 +573,7 @@ export default function HomeScreen() {
 
     const existing = products.find((item) => item.barcode === value && !item.archived);
     if (existing) {
-      showAlert("Produto jÃ¡ cadastrado", `${existing.name} jÃ¡ estÃ¡ na sua lista.`, [
+      showAlert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
         { text: "Cancelar", style: "cancel" },
         { text: "Editar", onPress: () => editProduct(existing) },
       ]);
@@ -590,8 +590,8 @@ export default function HomeScreen() {
     if (!foundProduct?.name && !foundProduct?.imageUrl) {
       setFormOpen(false);
       showAlert(
-        "Produto nÃ£o encontrado",
-        "O cÃ³digo foi lido, mas o produto nÃ£o estÃ¡ na base. Cadastre por foto com IA ou digite os dados manualmente.",
+        "Produto não encontrado",
+        "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
         [
           { text: "Digitar manualmente", style: "cancel", onPress: () => setFormOpen(true) },
           { text: "Cadastrar com IA", onPress: () => startAiPhoto(value) },
@@ -613,7 +613,7 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        showAlert("PermissÃ£o necessÃ¡ria", "Permita o acesso Ã s fotos para usar o cadastro por IA.");
+        showAlert("Permissão necessária", "Permita o acesso às fotos para usar o cadastro por IA.");
         return;
       }
     }
@@ -633,7 +633,7 @@ export default function HomeScreen() {
   async function takePhotoForAi(code?: string) {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      showAlert("CÃ¢mera necessÃ¡ria", "Permita o acesso Ã  cÃ¢mera para fotografar o produto.");
+      showAlert("Câmera necessária", "Permita o acesso à câmera para fotografar o produto.");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -679,7 +679,7 @@ export default function HomeScreen() {
         const existing = products.find((item) => item.name === topMatch.name && !item.archived);
         showAlert(
           "Produto parecido encontrado",
-          `"${topMatch.name}" tem ${topMatch.similarity}% de compatibilidade com o que vocÃª fotografou. Usar o cadastro existente?`,
+          `"${topMatch.name}" tem ${topMatch.similarity}% de compatibilidade com o que você fotografou. Usar o cadastro existente?`,
           [
             { text: "Continuar novo", style: "cancel" },
             {
@@ -694,8 +694,8 @@ export default function HomeScreen() {
       setFormOpen(true);
     } catch (error) {
       showAlert(
-        "Assistente de IA indisponÃ­vel",
-        error instanceof Error ? error.message : "Verifique a configuraÃ§Ã£o da Edge Function e tente novamente.",
+        "Assistente de IA indisponível",
+        error instanceof Error ? error.message : "Verifique a configuração da Edge Function e tente novamente.",
       );
     } finally {
       setAiProcessing(false);
@@ -764,7 +764,7 @@ export default function HomeScreen() {
         existingProductNames: existingProductNames(products),
       });
       if (!result.cutoutUrl && !result.name) {
-        showAlert("IA indisponÃ­vel", "NÃ£o foi possÃ­vel processar a foto agora.");
+        showAlert("IA indisponível", "Não foi possível processar a foto agora.");
         return;
       }
       const updated: Product = {
@@ -793,7 +793,7 @@ export default function HomeScreen() {
       );
     } catch (error) {
       showAlert(
-        "Assistente de IA indisponÃ­vel",
+        "Assistente de IA indisponível",
         error instanceof Error ? error.message : "Tente novamente.",
       );
     } finally {
@@ -809,11 +809,11 @@ export default function HomeScreen() {
       return;
     }
     if (!parsedDate) {
-      showAlert("Data invÃ¡lida", "Use o formato DD/MM/AAAA.");
+      showAlert("Data inválida", "Use o formato DD/MM/AAAA.");
       return;
     }
     if (!Number.isInteger(numericQuantity) || numericQuantity < 1) {
-      showAlert("Quantidade invÃ¡lida", "Informe um nÃºmero inteiro maior que zero.");
+      showAlert("Quantidade inválida", "Informe um número inteiro maior que zero.");
       return;
     }
 
@@ -837,7 +837,7 @@ export default function HomeScreen() {
       } catch {
         showAlert(
           "Produto salvo sem compartilhar",
-          "NÃ£o foi possÃ­vel atualizar o catÃ¡logo compartilhado agora.",
+          "Não foi possível atualizar o catálogo compartilhado agora.",
         );
       }
     }
@@ -885,8 +885,8 @@ export default function HomeScreen() {
     resetForm();
     setFormOpen(false);
 
-    // Se o produto foi identificado com foto mas ainda nÃ£o tem fundo removido,
-    // processa a remoÃ§Ã£o em segundo plano e atualiza a foto automaticamente.
+    // Se o produto foi identificado com foto mas ainda não tem fundo removido,
+    // processa a remoção em segundo plano e atualiza a foto automaticamente.
     if (!isDemo && product.imageUrl && !product.photoCutoutUrl) {
       processPhotoCutoutForProduct(product).catch(() => undefined);
     }
@@ -1002,7 +1002,7 @@ export default function HomeScreen() {
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Confirmar remoÃ§Ã£o",
+          text: "Confirmar remoção",
           style: "destructive",
           onPress: async () => {
             setRemovingSelected(true);
@@ -1013,9 +1013,9 @@ export default function HomeScreen() {
               );
               await persist(products.filter((product) => !selectedIds.has(product.id)));
               closeSelectionMode();
-              showAlert("RemoÃ§Ã£o concluÃ­da", "Os itens selecionados foram removidos.");
+              showAlert("Remoção concluída", "Os itens selecionados foram removidos.");
             } catch {
-              showAlert("NÃ£o foi possÃ­vel remover", "Tente novamente.");
+              showAlert("Não foi possível remover", "Tente novamente.");
             } finally {
               setRemovingSelected(false);
             }
@@ -1045,7 +1045,7 @@ export default function HomeScreen() {
         const days = daysUntil(product.expiresAt);
         const productCategory = product.category || "Mercearia";
         const advanceDays =
-          productCategory === "AÃ§ougue" || productCategory === "Frios/PAS"
+          productCategory === "Açougue" || productCategory === "Frios/PAS"
             ? 15
             : 30;
         return days >= 0 && days <= advanceDays;
@@ -1088,7 +1088,7 @@ export default function HomeScreen() {
             <td>
               <strong>${escapeHtml(product.name)}</strong>
               <span class="category">${escapeHtml(product.category || "Mercearia")}</span>
-              ${product.barcode ? `<span class="barcode">CÃ³digo de barras: ${escapeHtml(product.barcode)}</span>` : ""}
+              ${product.barcode ? `<span class="barcode">Código de barras: ${escapeHtml(product.barcode)}</span>` : ""}
             </td>
             <td class="center">${product.quantity}</td>
             <td>${formatBrazilianDate(product.expiresAt)}</td>
@@ -1139,7 +1139,7 @@ export default function HomeScreen() {
             ${companyLogo ? `<img class="logo" src="${escapeHtml(companyLogo)}" />` : ""}
             <div>
             <p class="brand">${escapeHtml(groupName)}</p>
-            <p class="subtitle">RelatÃ³rio de validade dos produtos selecionados</p>
+            <p class="subtitle">Relatório de validade dos produtos selecionados</p>
             </div>
           </div>
           <div class="meta">
@@ -1150,7 +1150,7 @@ export default function HomeScreen() {
             <strong>${selected.length} produto${selected.length === 1 ? "" : "s"}</strong>
           </div>
           <table>
-            <thead><tr><th>Produto</th><th class="center">Qtd.</th><th>Validade</th><th>SituaÃ§Ã£o</th></tr></thead>
+            <thead><tr><th>Produto</th><th class="center">Qtd.</th><th>Validade</th><th>Situação</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="footer">Gerado pelo Prazo Certo</div>
@@ -1161,21 +1161,21 @@ export default function HomeScreen() {
       setExportingPdf(true);
       if (Platform.OS === "web") {
         await Print.printAsync({ html });
-        showAlert("PDF pronto", "Use a janela de impressÃ£o do navegador para salvar o PDF.");
+        showAlert("PDF pronto", "Use a janela de impressão do navegador para salvar o PDF.");
         return;
       }
       const file = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
           mimeType: "application/pdf",
-          dialogTitle: "Compartilhar relatÃ³rio do Prazo Certo",
+          dialogTitle: "Compartilhar relatório do Prazo Certo",
           UTI: "com.adobe.pdf",
         });
       } else {
         showAlert("PDF criado", `Arquivo salvo em: ${file.uri}`);
       }
     } catch {
-      showAlert("NÃ£o foi possÃ­vel gerar o PDF", "Tente novamente em alguns instantes.");
+      showAlert("Não foi possível gerar o PDF", "Tente novamente em alguns instantes.");
     } finally {
       setExportingPdf(false);
     }
@@ -1190,13 +1190,13 @@ export default function HomeScreen() {
       imageUrl: string;
     }> = [
       { name: "Leite condensado - teste", barcode: "7891000100103", category: "Mercearia", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/100/010/0103/front_pt.34.200.jpg" },
-      { name: "Creme de avelÃ£ - teste", barcode: "3017620422003", category: "SaudÃ¡veis", quantity: 1, imageUrl: "https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.879.200.jpg" },
+      { name: "Creme de avelã - teste", barcode: "3017620422003", category: "Saudáveis", quantity: 1, imageUrl: "https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.879.200.jpg" },
       { name: "Molho pesto - teste", barcode: "8076809513753", category: "Frios/PAS", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/807/680/951/3753/front_en.347.200.jpg" },
       { name: "Biscoito recheado - teste", barcode: "7622210449283", category: "Mercearia", quantity: 4, imageUrl: "https://images.openfoodfacts.org/images/products/762/221/044/9283/front_en.605.200.jpg" },
       { name: "Refrigerante Coca-Cola - teste", barcode: "7894900011517", category: "Mercearia", quantity: 3, imageUrl: "https://images.openfoodfacts.org/images/products/789/490/001/1517/front_pt.13.200.jpg" },
-      { name: "H2O Limoneto - teste", barcode: "7892840812850", category: "SaudÃ¡veis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/284/081/2850/front_pt.25.200.jpg" },
+      { name: "H2O Limoneto - teste", barcode: "7892840812850", category: "Saudáveis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/284/081/2850/front_pt.25.200.jpg" },
       { name: "Leite integral - teste", barcode: "7891025101604", category: "Frios/PAS", quantity: 5, imageUrl: "https://images.openfoodfacts.org/images/products/789/102/510/1604/front_pt.4.200.jpg" },
-      { name: "ChÃ¡ Matte LeÃ£o - teste", barcode: "7891098038456", category: "SaudÃ¡veis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/109/803/8456/front_pt.17.200.jpg" },
+      { name: "Chá Matte Leão - teste", barcode: "7891098038456", category: "Saudáveis", quantity: 2, imageUrl: "https://images.openfoodfacts.org/images/products/789/109/803/8456/front_pt.17.200.jpg" },
       { name: "Soda Limonada - teste", barcode: "7891991000833", category: "Mercearia", quantity: 4, imageUrl: "https://images.openfoodfacts.org/images/products/789/199/100/0833/front_pt.20.200.jpg" },
     ];
     const shuffledProducts = [...productPool];
@@ -1346,7 +1346,7 @@ export default function HomeScreen() {
                 <Image source={{ uri: company.logoUrl }} style={styles.companyLogo} />
               ) : null}
               <Text style={styles.companyLine} numberOfLines={1}>
-                {company ? `${company.name}  â€¢  CÃ³digo: ${company.inviteCode}` : "Minha lista pessoal"}
+                {company ? `${company.name}  •  Código: ${company.inviteCode}` : "Minha lista pessoal"}
               </Text>
             </View>
           </View>
@@ -1358,7 +1358,7 @@ export default function HomeScreen() {
             style={styles.portfolioBackMain}
             onPress={() => Linking.openURL("https://portfolio-3d-eight-nu.vercel.app/#projetos")}
           >
-            <Text style={styles.portfolioBackMainText}>â† VOLTAR AO PORTFÃ“LIO</Text>
+            <Text style={styles.portfolioBackMainText}>← VOLTAR AO PORTFÓLIO</Text>
           </Pressable>
         ) : null}
 
@@ -1367,15 +1367,15 @@ export default function HomeScreen() {
           <Pressable style={styles.scanButton} onPress={openScanner}>
             <View style={styles.scanIconWrap}><BarcodeIcon size={25} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.scanText}>CÃ³digo de barras</Text>
+              <Text style={styles.scanText}>Código de barras</Text>
               <Text style={styles.scanSubtext}>Toque para escanear o produto</Text>
             </View>
-            <Text style={styles.actionArrow}>â€º</Text>
+            <Text style={styles.actionArrow}>›</Text>
           </Pressable>
           ) : null}
           {rolePermissions.canAdd ? (
             <Pressable style={styles.addButton} onPress={() => setFormOpen(true)}>
-              <Text style={styles.addText}>ï¼‹</Text>
+              <Text style={styles.addText}>＋</Text>
             </Pressable>
           ) : null}
         </View>
@@ -1413,7 +1413,7 @@ export default function HomeScreen() {
                     <Image source={{ uri: company.logoUrl }} style={styles.profileCompanyLogo} />
                   ) : null}
                   <Text style={styles.profileMenuCompanyName}>{company.name}</Text>
-                  <Text style={styles.profileMenuCode}>CÃ³digo para entrar: {company.inviteCode}</Text>
+                  <Text style={styles.profileMenuCode}>Código para entrar: {company.inviteCode}</Text>
                 </View>
                 {company.role === "owner" || company.role === "admin" ? (
                   <Pressable
@@ -1424,7 +1424,7 @@ export default function HomeScreen() {
                     }}
                   >
                     <Text style={styles.profileMenuManageText}>Gerenciar equipe</Text>
-                    <Text style={styles.profileMenuManageArrow}>â€º</Text>
+                    <Text style={styles.profileMenuManageArrow}>›</Text>
                   </Pressable>
                 ) : null}
               </>
@@ -1433,7 +1433,7 @@ export default function HomeScreen() {
                 <View style={styles.profileMenuPersonal}>
                   <Text style={styles.profileMenuLabel}>MODO ATUAL</Text>
                   <Text style={styles.profileMenuCompanyName}>Lista pessoal</Text>
-                  <Text style={styles.profileMenuCode}>Somente vocÃª pode ver estes produtos.</Text>
+                  <Text style={styles.profileMenuCode}>Somente você pode ver estes produtos.</Text>
                 </View>
                 <Pressable
                   style={[styles.profileMenuManage, styles.profileMenuCreate]}
@@ -1444,7 +1444,7 @@ export default function HomeScreen() {
                   }}
                 >
                   <Text style={[styles.profileMenuManageText, styles.profileMenuCreateText]}>Criar grupo</Text>
-                  <Text style={[styles.profileMenuManageArrow, styles.profileMenuCreateText]}>â€º</Text>
+                  <Text style={[styles.profileMenuManageArrow, styles.profileMenuCreateText]}>›</Text>
                 </Pressable>
                 <Pressable
                   style={styles.profileMenuJoin}
@@ -1455,7 +1455,7 @@ export default function HomeScreen() {
                   }}
                 >
                   <Text style={styles.profileMenuJoinText}>Entrar em um grupo</Text>
-                  <Text style={styles.profileMenuManageArrow}>â€º</Text>
+                  <Text style={styles.profileMenuManageArrow}>›</Text>
                 </Pressable>
               </>
             )}
@@ -1468,7 +1468,7 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuOptionIconText}>P</Text>
                 </View>
                 <Text style={styles.profileMenuOptionText}>Meu perfil</Text>
-                <Text style={styles.profileMenuOptionArrow}>â€º</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
               <Pressable
                 style={styles.profileMenuOption}
@@ -1477,8 +1477,8 @@ export default function HomeScreen() {
                 <View style={styles.profileMenuOptionIcon}>
                   <Text style={styles.profileMenuOptionIconText}>N</Text>
                 </View>
-                <Text style={styles.profileMenuOptionText}>NotificaÃ§Ãµes</Text>
-                <Text style={styles.profileMenuOptionArrow}>â€º</Text>
+                <Text style={styles.profileMenuOptionText}>Notificações</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
               <Pressable
                 style={styles.profileMenuOption}
@@ -1490,8 +1490,8 @@ export default function HomeScreen() {
                 <View style={styles.profileMenuOptionIcon}>
                   <Text style={styles.profileMenuOptionIconText}>H</Text>
                 </View>
-                <Text style={styles.profileMenuOptionText}>HistÃ³rico</Text>
-                <Text style={styles.profileMenuOptionArrow}>â€º</Text>
+                <Text style={styles.profileMenuOptionText}>Histórico</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
               <Pressable
                 style={styles.profileMenuOption}
@@ -1500,8 +1500,8 @@ export default function HomeScreen() {
                 <View style={styles.profileMenuOptionIcon}>
                   <Text style={styles.profileMenuOptionIconText}>R</Text>
                 </View>
-                <Text style={styles.profileMenuOptionText}>RelatÃ³rios</Text>
-                <Text style={styles.profileMenuOptionArrow}>â€º</Text>
+                <Text style={styles.profileMenuOptionText}>Relatórios</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
               <Pressable
                 style={[styles.profileMenuOption, styles.profileMenuOptionLast]}
@@ -1511,7 +1511,7 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuOptionIconText}>?</Text>
                 </View>
                 <Text style={styles.profileMenuOptionText}>Ajuda</Text>
-                <Text style={styles.profileMenuOptionArrow}>â€º</Text>
+                <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
             </View>
             <Pressable
@@ -1549,9 +1549,9 @@ export default function HomeScreen() {
                   {menuScreen === "profile"
                     ? "Meu perfil"
                     : menuScreen === "notifications"
-                      ? "NotificaÃ§Ãµes"
+                      ? "Notificações"
                       : menuScreen === "reports"
-                        ? "RelatÃ³rios"
+                        ? "Relatórios"
                         : "Ajuda"}
                 </Text>
               </View>
@@ -1560,7 +1560,7 @@ export default function HomeScreen() {
                 onPress={() => setMenuScreen(null)}
                 accessibilityLabel="Fechar"
               >
-                <Text style={styles.menuScreenCloseText}>Ã—</Text>
+                <Text style={styles.menuScreenCloseText}>×</Text>
               </Pressable>
             </View>
 
@@ -1605,7 +1605,7 @@ export default function HomeScreen() {
                   </Text>
                   <View style={styles.settingCard}>
                     <View style={styles.settingTextWrap}>
-                      <Text style={styles.settingTitle}>Ativar notificaÃ§Ãµes</Text>
+                      <Text style={styles.settingTitle}>Ativar notificações</Text>
                       <Text style={styles.settingDescription}>Liga ou desliga todos os avisos.</Text>
                     </View>
                     <Switch
@@ -1618,10 +1618,10 @@ export default function HomeScreen() {
                     />
                   </View>
                   {[
-                    ["advance", "Aviso antecipado", "30 dias antes; 15 dias para AÃ§ougue e Frios/PAS."],
+                    ["advance", "Aviso antecipado", "30 dias antes; 15 dias para Açougue e Frios/PAS."],
                     ["sevenDays", "7 dias antes", "Uma semana antes do vencimento."],
                     ["oneDay", "1 dia antes", "Um lembrete no dia anterior."],
-                    ["expiryDay", "No vencimento", "Aviso no prÃ³prio dia da validade."],
+                    ["expiryDay", "No vencimento", "Aviso no próprio dia da validade."],
                   ].map(([key, title, description]) => (
                     <View style={styles.settingCard} key={key}>
                       <View style={styles.settingTextWrap}>
@@ -1643,7 +1643,7 @@ export default function HomeScreen() {
                     </View>
                   ))}
                   <Pressable style={styles.menuPrimaryButton} onPress={saveNotificationPreferences}>
-                    <Text style={styles.menuPrimaryButtonText}>Salvar preferÃªncias</Text>
+                    <Text style={styles.menuPrimaryButtonText}>Salvar preferências</Text>
                   </Pressable>
                 </>
               ) : null}
@@ -1651,7 +1651,7 @@ export default function HomeScreen() {
               {menuScreen === "reports" ? (
                 <>
                   <Text style={styles.menuScreenDescription}>
-                    VisÃ£o geral da sua lista atual de produtos.
+                    Visão geral da sua lista atual de produtos.
                   </Text>
                   <View style={styles.reportHero}>
                     <Text style={styles.reportHeroNumber}>{products.length}</Text>
@@ -1665,7 +1665,7 @@ export default function HomeScreen() {
                     </View>
                     <View style={[styles.reportCard, styles.reportCardExpiring]}>
                       <Text style={styles.reportCardNumber}>{stats.expiring}</Text>
-                      <Text style={styles.reportCardLabel}>PrÃ³ximos</Text>
+                      <Text style={styles.reportCardLabel}>Próximos</Text>
                     </View>
                     <View style={[styles.reportCard, styles.reportCardOk]}>
                       <Text style={styles.reportCardNumber}>{stats.ok}</Text>
@@ -1673,13 +1673,13 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <View style={styles.reportInsight}>
-                    <Text style={styles.reportInsightTitle}>AÃ§Ã£o recomendada</Text>
+                    <Text style={styles.reportInsightTitle}>Ação recomendada</Text>
                     <Text style={styles.reportInsightText}>
                       {stats.expired > 0
-                        ? `Revise os ${stats.expired} produtos vencidos e remova-os da seÃ§Ã£o.`
+                        ? `Revise os ${stats.expired} produtos vencidos e remova-os da seção.`
                         : stats.expiring > 0
-                          ? `Planeje o rebaixa dos ${stats.expiring} produtos prÃ³ximos do vencimento.`
-                          : "Sua lista estÃ¡ em dia. Continue cadastrando as novas validades."}
+                          ? `Planeje o rebaixa dos ${stats.expiring} produtos próximos do vencimento.`
+                          : "Sua lista está em dia. Continue cadastrando as novas validades."}
                     </Text>
                   </View>
                   <Pressable
@@ -1697,13 +1697,13 @@ export default function HomeScreen() {
               {menuScreen === "help" ? (
                 <>
                   <Text style={styles.menuScreenDescription}>
-                    Respostas rÃ¡pidas para usar o aplicativo no dia a dia.
+                    Respostas rápidas para usar o aplicativo no dia a dia.
                   </Text>
                   {[
-                    ["Como cadastrar um produto?", "Toque no botÃ£o +, informe a validade e salve. VocÃª tambÃ©m pode usar o leitor de cÃ³digo de barras."],
-                    ["Quando receberei avisos?", "Os avisos seguem as opÃ§Ãµes escolhidas em NotificaÃ§Ãµes e sÃ£o programados ao cadastrar ou editar um produto."],
-                    ["Como funciona o grupo de lista?", "Crie um grupo e compartilhe o cÃ³digo de entrada para todos acessarem a mesma lista."],
-                    ["Como gerar um relatÃ³rio?", "Abra RelatÃ³rios, toque em selecionar produtos para PDF e escolha os itens desejados."],
+                    ["Como cadastrar um produto?", "Toque no botão +, informe a validade e salve. Você também pode usar o leitor de código de barras."],
+                    ["Quando receberei avisos?", "Os avisos seguem as opções escolhidas em Notificações e são programados ao cadastrar ou editar um produto."],
+                    ["Como funciona o grupo de lista?", "Crie um grupo e compartilhe o código de entrada para todos acessarem a mesma lista."],
+                    ["Como gerar um relatório?", "Abra Relatórios, toque em selecionar produtos para PDF e escolha os itens desejados."],
                   ].map(([question, answer]) => (
                     <View style={styles.helpCard} key={question}>
                       <Text style={styles.helpQuestion}>{question}</Text>
@@ -1713,7 +1713,7 @@ export default function HomeScreen() {
                   <View style={styles.helpTip}>
                     <Text style={styles.helpTipTitle}>Dica</Text>
                     <Text style={styles.helpTipText}>
-                      Mantenha as quantidades e validades atualizadas para que os relatÃ³rios sejam confiÃ¡veis.
+                      Mantenha as quantidades e validades atualizadas para que os relatórios sejam confiáveis.
                     </Text>
                   </View>
                 </>
@@ -1760,7 +1760,7 @@ export default function HomeScreen() {
         <View style={styles.stat}>
           <View style={[styles.statDot, { backgroundColor: "#E59A32" }]} />
           <Text style={styles.statNumber}>{stats.expiring}</Text>
-          <Text style={styles.statLabel}>PrÃ³ximos</Text>
+          <Text style={styles.statLabel}>Próximos</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
@@ -1826,7 +1826,7 @@ export default function HomeScreen() {
                 const days = daysUntil(product.expiresAt);
                 const productCategory = product.category || "Mercearia";
                 const advanceDays =
-                  productCategory === "AÃ§ougue" || productCategory === "Frios/PAS"
+                  productCategory === "Açougue" || productCategory === "Frios/PAS"
                     ? 15
                     : 30;
                 return days >= 0 && days <= advanceDays;
@@ -1845,7 +1845,7 @@ export default function HomeScreen() {
                   onPress={toggleExpiringSelection}
                 >
                   <Text style={[styles.expiringSelectorText, active && styles.categorySelectorChipTextActive]}>
-                    {active ? "âœ“ " : "âš  "}Com aviso ({expiringProducts.length})
+                    {active ? "✓ " : "⚠ "}Com aviso ({expiringProducts.length})
                   </Text>
                 </Pressable>
               );
@@ -1869,7 +1869,7 @@ export default function HomeScreen() {
                   onPress={() => toggleCategorySelection(categoryOption)}
                 >
                   <Text style={[styles.categorySelectorChipText, active && styles.categorySelectorChipTextActive]}>
-                    {active ? "âœ“ " : ""}{categoryOption} ({categoryProducts.length})
+                    {active ? "✓ " : ""}{categoryOption} ({categoryProducts.length})
                   </Text>
                 </Pressable>
               );
@@ -1890,16 +1890,16 @@ export default function HomeScreen() {
           ]}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>âŒ</Text>
-              <Text style={styles.emptyTitle}>Sua despensa estÃ¡ vazia</Text>
-              <Text style={styles.emptyText}>Leia um cÃ³digo de barras ou cadastre seu primeiro produto.</Text>
+              <Text style={styles.emptyIcon}>⌁</Text>
+              <Text style={styles.emptyTitle}>Sua despensa está vazia</Text>
+              <Text style={styles.emptyText}>Leia um código de barras ou cadastre seu primeiro produto.</Text>
             </View>
           }
           renderItem={({ item }) => {
             const days = daysUntil(item.expiresAt);
             const itemCategory = item.category || "Mercearia";
             const alertAdvanceDays =
-              itemCategory === "AÃ§ougue" || itemCategory === "Frios/PAS"
+              itemCategory === "Açougue" || itemCategory === "Frios/PAS"
                 ? 15
                 : 30;
             const hasExpiryAlert = days >= 0 && days <= alertAdvanceDays;
@@ -1919,14 +1919,14 @@ export default function HomeScreen() {
                 <View style={[styles.statusBar, { backgroundColor: color }]} />
                 {selectionMode && (
                   <View style={[styles.selectionCircle, selectedIds.has(item.id) && styles.selectionCircleActive]}>
-                    <Text style={styles.selectionCheck}>{selectedIds.has(item.id) ? "âœ“" : ""}</Text>
+                    <Text style={styles.selectionCheck}>{selectedIds.has(item.id) ? "✓" : ""}</Text>
                   </View>
                 )}
                 {item.photoCutoutUrl || item.imageUrl ? (
                   <Image source={{ uri: item.photoCutoutUrl || item.imageUrl }} style={styles.productImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <Text style={styles.imagePlaceholderText}>â–¦</Text>
+                    <Text style={styles.imagePlaceholderText}>▦</Text>
                   </View>
                 )}
                 <View style={styles.cardBody}>
@@ -1934,31 +1934,29 @@ export default function HomeScreen() {
                     <Text style={styles.productName}>{item.name}</Text>
                     <Text style={[styles.badge, { color, backgroundColor: `${color}14` }]}>{expiryLabel(days)}</Text>
                   </View>
-                  <View style={styles.expiryRow}>
-                    <Text style={styles.expiry}>Validade: {formatBrazilianDate(item.expiresAt)}</Text>
-                    {rolePermissions.canAdd && !selectionMode ? (
-                      <Pressable style={styles.cardEditButton} onPress={() => editProduct(item)}>
-                        <Text style={styles.cardEditText}>✎</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
+                  <Text style={styles.expiry}>Validade: {formatBrazilianDate(item.expiresAt)}</Text>
                   {days < 0 && (
-                    <Text style={styles.expiredRemovalNotice}>âš  Remover da seÃ§Ã£o</Text>
+                    <Text style={styles.expiredRemovalNotice}>⚠ Remover da seção</Text>
                   )}
                   {item.rebaixaAprovada ? (
                     <Text style={styles.rebaixaApprovedText}>
-                      âœ“ Rebaixa aprovada{item.rebaixaData ? ` â€¢ ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
+                      ✓ Rebaixa aprovada{item.rebaixaData ? ` • ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
                     </Text>
                   ) : hasExpiryAlert ? (
-                    <Text style={styles.markdownNotice}>âš  Pedir rebaixa</Text>
+                    <Text style={styles.markdownNotice}>⚠ Pedir rebaixa</Text>
                   ) : null}
                   <View style={styles.cardMeta}>
                     <Text style={styles.categoryBadge}>{item.category || "Mercearia"}</Text>
                     <Text style={styles.details}>
-                      {item.quantity} un.{item.barcode ? `  â€¢  ${item.barcode}` : ""}
+                      {item.quantity} un.{item.barcode ? `  •  ${item.barcode}` : ""}
                     </Text>
                   </View>
                 </View>
+                {rolePermissions.canAdd && !selectionMode ? (
+                  <Pressable style={styles.cardEditButton} onPress={() => editProduct(item)}>
+                    <Text style={styles.cardEditText}>✎</Text>
+                  </Pressable>
+                ) : null}
               </Pressable>
             );
           }}
@@ -1970,7 +1968,7 @@ export default function HomeScreen() {
           <View style={styles.barInfo}>
             <Text style={styles.pdfCount} numberOfLines={1}>{selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}</Text>
             {bulkDeleteMode ? (
-              <Text style={styles.pdfHint}>Os produtos selecionados serÃ£o excluÃ­dos</Text>
+              <Text style={styles.pdfHint}>Os produtos selecionados serão excluídos</Text>
             ) : null}
           </View>
           {bulkDeleteMode ? (
@@ -2047,27 +2045,27 @@ export default function HomeScreen() {
                     setActionProduct(null);
                   }}
                 >
-                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>â˜‘</Text></View>
+                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>☑</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.editActionTitle}>Selecionar produto</Text>
                     <Text style={styles.editActionDescription}>Marcar para gerar PDF ou remover em grupo</Text>
                   </View>
-                  <Text style={styles.editActionArrow}>â€º</Text>
+                  <Text style={styles.editActionArrow}>›</Text>
                 </Pressable>
 
                 {rolePermissions.canAdd && actionProduct.imageUrl && !actionProduct.photoCutoutUrl ? (
                   <Pressable style={styles.aiActionButton} onPress={() => processPhotoWithAi(actionProduct)}>
-                    <Text style={styles.aiActionText}>âœ¨ Processar foto com IA (remover fundo)</Text>
+                    <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
                   </Pressable>
                 ) : null}
                 {rolePermissions.canAdd ? (
                 <Pressable style={[styles.rebaixaActionButton, actionProduct.rebaixaAprovada && styles.rebaixaApproved]} onPress={() => toggleRebaixa(actionProduct)}>
-                  <View style={styles.actionButtonIcon}><Text style={[styles.editActionIcon, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "âœ“" : "ðŸ·"}</Text></View>
+                  <View style={styles.actionButtonIcon}><Text style={[styles.editActionIcon, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "✓" : "🏷"}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.editActionTitle, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "Rebaixa aprovada" : "Marcar rebaixa aprovada"}</Text>
                     <Text style={styles.editActionDescription}>{actionProduct.rebaixaAprovada ? "Toque para desmarcar" : "Registrar que a rebaixa foi aprovada"}</Text>
                   </View>
-                  <Text style={[styles.editActionArrow, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>â€º</Text>
+                  <Text style={[styles.editActionArrow, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>›</Text>
                 </Pressable>
                 ) : null}
 
@@ -2103,7 +2101,7 @@ export default function HomeScreen() {
                   {imageUrl ? "Foto do produto" : "Adicionar foto"}
                 </Text>
                 <Text style={styles.previewText}>
-                  {imageUrl ? "Toque para trocar a imagem." : "Ajude a completar o catÃ¡logo compartilhado."}
+                  {imageUrl ? "Toque para trocar a imagem." : "Ajude a completar o catálogo compartilhado."}
                 </Text>
               </View>
               <Pressable style={styles.productPhotoButton} onPress={chooseProductPhoto}>
@@ -2114,7 +2112,7 @@ export default function HomeScreen() {
               {aiProcessing ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
-                <Text style={styles.aiButtonText}>âœ¨ Identificar por foto com IA</Text>
+                <Text style={styles.aiButtonText}>✨ Identificar por foto com IA</Text>
               )}
             </Pressable>
             <Text style={styles.label}>Nome do produto</Text>
@@ -2123,7 +2121,7 @@ export default function HomeScreen() {
               {lookingUp && <ActivityIndicator color="#1E7A55" />}
             </View>
 
-            <Text style={styles.label}>CÃ³digo de barras</Text>
+            <Text style={styles.label}>Código de barras</Text>
             <View style={styles.barcodeRow}>
               <TextInput
                 style={[styles.inputSolo, styles.barcodeInput]}
@@ -2136,7 +2134,7 @@ export default function HomeScreen() {
                 <Pressable
                   style={styles.barcodeScannerButton}
                   onPress={openFieldScanner}
-                  accessibilityLabel="Escanear cÃ³digo de barras"
+                  accessibilityLabel="Escanear código de barras"
                 >
                   <BarcodeIcon size={18} color="#FFF" />
                   <Text style={styles.barcodeScannerText}>Escanear</Text>
@@ -2181,12 +2179,12 @@ export default function HomeScreen() {
             </View>
 
             <Text style={styles.hint}>
-              {category === "AÃ§ougue" || category === "Frios/PAS"
+              {category === "Açougue" || category === "Frios/PAS"
                   ? "Avisos: 15 dias, 7 dias, 1 dia antes e no vencimento."
-                  : "Avisos: 1 mÃªs, 7 dias, 1 dia antes e no vencimento."}
+                  : "Avisos: 1 mês, 7 dias, 1 dia antes e no vencimento."}
             </Text>
             <Pressable style={styles.saveButton} onPress={saveProduct}>
-              <Text style={styles.saveText}>{editingId ? "Salvar alteraÃ§Ãµes" : "Salvar produto"}</Text>
+              <Text style={styles.saveText}>{editingId ? "Salvar alterações" : "Salvar produto"}</Text>
             </Pressable>
             <Pressable style={styles.cancelButton} onPress={() => { setFormOpen(false); resetForm(); }}><Text style={styles.cancelText}>Cancelar</Text></Pressable>
           </View>
@@ -2204,7 +2202,7 @@ export default function HomeScreen() {
             }
           />
           <View style={styles.cameraOverlay}>
-            <Text style={styles.cameraTitle}>Aponte para o cÃ³digo de barras</Text>
+            <Text style={styles.cameraTitle}>Aponte para o código de barras</Text>
             <View style={styles.scanFrame} />
             <Pressable style={styles.closeCamera} onPress={() => setScannerOpen(false)}><Text style={styles.closeCameraText}>Cancelar</Text></Pressable>
           </View>
@@ -2373,8 +2371,7 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
   productName: { flex: 1, fontSize: 17, fontWeight: "700", color: "#243D34" },
   badge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
-  expiryRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
-  expiry: { color: "#59665F", fontSize: 13 },
+  expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
   rebaixaApprovedText: { color: "#1E7A55", fontSize: 11, fontWeight: "800", marginTop: 5 },
@@ -2382,7 +2379,7 @@ const styles = StyleSheet.create({
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
-  cardEditButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: 8 },
+  cardEditButton: { position: "absolute", right: 10, bottom: 10, width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", zIndex: 2 },
   cardEditText: { color: "#2E7D53", fontSize: 17, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },
