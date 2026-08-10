@@ -77,6 +77,7 @@ export default function HomeScreen() {
   const [aiProcessing, setAiProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
+  const [bulkRebaixaMode, setBulkRebaixaMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [exportingPdf, setExportingPdf] = useState(false);
   const [removingSelected, setRemovingSelected] = useState(false);
@@ -943,19 +944,60 @@ export default function HomeScreen() {
   function closeSelectionMode() {
     setSelectionMode(false);
     setBulkDeleteMode(false);
+    setBulkRebaixaMode(false);
     setSelectedIds(new Set());
   }
 
   function startPdfSelection() {
     setBulkDeleteMode(false);
+    setBulkRebaixaMode(false);
     setSelectedIds(new Set());
     setSelectionMode(true);
   }
 
   function startBulkDelete() {
     setBulkDeleteMode(true);
+    setBulkRebaixaMode(false);
     setSelectedIds(new Set());
     setSelectionMode(true);
+  }
+
+  function startBulkRebaixa() {
+    setBulkRebaixaMode(true);
+    setBulkDeleteMode(false);
+    setSelectedIds(new Set());
+    setSelectionMode(true);
+  }
+
+  async function markSelectedRebaixa() {
+    const selected = products.filter((product) => selectedIds.has(product.id));
+    if (!selected.length) return;
+    showAlert(
+      "Marcar rebaixa aprovada",
+      `Marcar ${selected.length} produto${selected.length === 1 ? "" : "s"} como rebaixa aprovada?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Marcar",
+          onPress: async () => {
+            const now = new Date().toISOString();
+            const marked = new Set(selected.map((product) => product.id));
+            await persist(
+              products.map((product) =>
+                marked.has(product.id)
+                  ? { ...product, rebaixaAprovada: true, rebaixaData: now }
+                  : product,
+              ),
+            );
+            closeSelectionMode();
+            showAlert(
+              "Rebaixa marcada",
+              `${selected.length} produto${selected.length === 1 ? "" : "s"} marcado${selected.length === 1 ? "" : "s"}.`,
+            );
+          },
+        },
+      ],
+    );
   }
 
   async function removeSelectedProducts() {
@@ -1745,6 +1787,11 @@ export default function HomeScreen() {
                   <Pressable style={styles.selectButton} onPress={startPdfSelection}>
                     <Text style={styles.selectButtonText}>▤ PDF</Text>
                   </Pressable>
+                  {rolePermissions.canAdd ? (
+                    <Pressable style={styles.rebaixaSelectButton} onPress={startBulkRebaixa}>
+                      <Text style={styles.rebaixaSelectButtonText}>Rebaixa</Text>
+                    </Pressable>
+                  ) : null}
                   {rolePermissions.canDelete ? (
                     <Pressable style={styles.bulkDeleteButton} onPress={startBulkDelete}>
                       <Text style={styles.bulkDeleteButtonText}>Remover</Text>
@@ -1920,26 +1967,39 @@ export default function HomeScreen() {
       )}
 
       {selectionMode && (
-        <View style={[styles.pdfBar, bulkDeleteMode && styles.deleteBar]}>
+        <View style={[styles.pdfBar, bulkDeleteMode && styles.deleteBar, bulkRebaixaMode && styles.rebaixaBar]}>
           <View>
             <Text style={styles.pdfCount}>{selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}</Text>
             <Text style={styles.pdfHint}>
-              {bulkDeleteMode ? "Os produtos selecionados serão excluídos" : "Relatório de validade em PDF"}
+              {bulkDeleteMode
+                ? "Os produtos selecionados serão excluídos"
+                : bulkRebaixaMode
+                  ? "Os produtos selecionados serão marcados como rebaixa aprovada"
+                  : "Relatório de validade em PDF"}
             </Text>
           </View>
           <Pressable
             style={[
               styles.pdfButton,
               bulkDeleteMode && styles.deleteSelectedButton,
+              bulkRebaixaMode && styles.rebaixaSelectedButton,
               (!selectedIds.size || exportingPdf) && styles.pdfButtonDisabled,
             ]}
             disabled={!selectedIds.size || exportingPdf}
-            onPress={bulkDeleteMode ? removeSelectedProducts : generateSelectedPdf}
+            onPress={
+              bulkDeleteMode
+                ? removeSelectedProducts
+                : bulkRebaixaMode
+                  ? markSelectedRebaixa
+                  : generateSelectedPdf
+            }
           >
             {exportingPdf ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.pdfButtonText}>{bulkDeleteMode ? "Remover" : "Gerar PDF"}</Text>
+              <Text style={styles.pdfButtonText}>
+                {bulkDeleteMode ? "Remover" : bulkRebaixaMode ? "Marcar rebaixa" : "Gerar PDF"}
+              </Text>
             )}
           </Pressable>
         </View>
@@ -2008,13 +2068,13 @@ export default function HomeScreen() {
                 ) : null}
 
                 {rolePermissions.canAdd ? (
-                <Pressable style={styles.rebaixaActionButton} onPress={() => toggleRebaixa(actionProduct)}>
-                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>{actionProduct.rebaixaAprovada ? "✗" : "🏷"}</Text></View>
+                <Pressable style={[styles.rebaixaActionButton, actionProduct.rebaixaAprovada && styles.rebaixaApproved]} onPress={() => toggleRebaixa(actionProduct)}>
+                  <View style={styles.actionButtonIcon}><Text style={[styles.editActionIcon, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "✓" : "🏷"}</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.editActionTitle}>{actionProduct.rebaixaAprovada ? "Desmarcar rebaixa" : "Marcar rebaixa aprovada"}</Text>
-                    <Text style={styles.editActionDescription}>{actionProduct.rebaixaAprovada ? "Remover o selo deste produto" : "Registrar que a rebaixa foi aprovada"}</Text>
+                    <Text style={[styles.editActionTitle, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "Rebaixa aprovada" : "Marcar rebaixa aprovada"}</Text>
+                    <Text style={styles.editActionDescription}>{actionProduct.rebaixaAprovada ? "Toque para desmarcar" : "Registrar que a rebaixa foi aprovada"}</Text>
                   </View>
-                  <Text style={styles.editActionArrow}>›</Text>
+                  <Text style={[styles.editActionArrow, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>›</Text>
                 </Pressable>
                 ) : null}
 
@@ -2290,6 +2350,8 @@ const styles = StyleSheet.create({
 
   bulkDeleteButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#F8E5E2" },
   bulkDeleteButtonText: { color: "#AC3B31", fontSize: 11, fontWeight: "800" },
+  rebaixaSelectButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8" },
+  rebaixaSelectButtonText: { color: "#8A6D1A", fontSize: 11, fontWeight: "800" },
   categorySelectorWrap: { paddingBottom: 10 },
   categorySelectorTitle: { color: "#66756E", fontSize: 11, fontWeight: "700", paddingHorizontal: 22, marginBottom: 8 },
   categorySelector: { paddingHorizontal: 22, gap: 7 },
@@ -2324,7 +2386,7 @@ const styles = StyleSheet.create({
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
   rebaixaApproved: { color: "#8A6D1A", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },\n  rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
   details: { color: "#8A938D", fontSize: 12 },
@@ -2368,10 +2430,12 @@ const styles = StyleSheet.create({
   closeCameraText: { color: "#243D34", fontWeight: "800" },
   pdfBar: { position: "absolute", left: 16, right: 16, bottom: 14, minHeight: 76, borderRadius: 20, backgroundColor: "#173F32", paddingHorizontal: 17, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", shadowColor: "#0D2D23", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.24, shadowRadius: 14, elevation: 9 },
   deleteBar: { backgroundColor: "#4B2421" },
+  rebaixaBar: { backgroundColor: "#7A5F16" },
   pdfCount: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   pdfHint: { color: "#AFCFC2", fontSize: 10, marginTop: 3 },
   pdfButton: { minWidth: 104, height: 46, borderRadius: 13, backgroundColor: "#2A9167", alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
   deleteSelectedButton: { backgroundColor: "#B54136" },
+  rebaixaSelectedButton: { backgroundColor: "#B98A1F" },
   pdfButtonDisabled: { opacity: 0.45 },
   pdfButtonText: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   actionBackdrop: { flex: 1, backgroundColor: "rgba(9,28,21,.56)", justifyContent: "flex-end" },
