@@ -1920,6 +1920,9 @@ export default function HomeScreen() {
               <Pressable
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
                 onPress={() => {
+                  if (selectionMode) toggleProductSelection(item.id);
+                }}
+                onLongPress={() => {
                   if (!selectionMode) setSelectionMode(true);
                   toggleProductSelection(item.id);
                 }}
@@ -2379,7 +2382,7 @@ const styles = StyleSheet.create({
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaApprovedText: { color: "#8A6D1A", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaApprovedText: { color: "#1E7A55", fontSize: 11, fontWeight: "800", marginTop: 5 },
   rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
