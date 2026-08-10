@@ -304,8 +304,11 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!session?.user.id || isDemo) return;
 
+    // Nome unico por montagem: evita reutilizar um canal ja inscrito
+    // (erro "cannot add postgres_changes callbacks after subscribe()").
+    const channelName = `products-${company?.id ?? `personal-${session.user.id}`}-${Date.now()}`;
     const channel = supabase
-      .channel(`products-${company?.id ?? `personal-${session.user.id}`}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
