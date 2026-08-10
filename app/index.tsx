@@ -1920,9 +1920,10 @@ export default function HomeScreen() {
               <Pressable
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
                 onPress={() => {
-                  if (selectionMode) toggleProductSelection(item.id);
+                  if (!selectionMode) setSelectionMode(true);
+                  toggleProductSelection(item.id);
                 }}
-                onLongPress={() => !selectionMode && showProductActions(item)}
+                onLongPress={() => showProductActions(item)}
               >
                 <View style={[styles.statusBar, { backgroundColor: color }]} />
                 {selectionMode && (
@@ -1947,7 +1948,7 @@ export default function HomeScreen() {
                     <Text style={styles.expiredRemovalNotice}>⚠ Remover da seção</Text>
                   )}
                   {item.rebaixaAprovada ? (
-                    <Text style={styles.rebaixaApproved}>
+                    <Text style={styles.rebaixaApprovedText}>
                       ✓ Rebaixa aprovada{item.rebaixaData ? ` • ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
                     </Text>
                   ) : hasExpiryAlert ? (
@@ -1960,6 +1961,11 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
+                {rolePermissions.canAdd && !selectionMode ? (
+                  <Pressable style={styles.cardEditButton} onPress={() => editProduct(item)}>
+                    <Text style={styles.cardEditText}>✎</Text>
+                  </Pressable>
+                ) : null}
               </Pressable>
             );
           }}
@@ -2055,18 +2061,6 @@ export default function HomeScreen() {
                     <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
                   </Pressable>
                 ) : null}
-                {rolePermissions.canAdd ? (
-                <Pressable style={styles.editActionButton} onPress={() => editProduct(actionProduct)}>
-                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>✎</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.editActionTitle}>Editar produto</Text>
-                    <Text style={styles.editActionDescription}>Alterar nome, categoria, quantidade ou validade</Text>
-                  </View>
-                  <Text style={styles.editActionArrow}>›</Text>
-                </Pressable>
-
-                ) : null}
-
                 {rolePermissions.canAdd ? (
                 <Pressable style={[styles.rebaixaActionButton, actionProduct.rebaixaAprovada && styles.rebaixaApproved]} onPress={() => toggleRebaixa(actionProduct)}>
                   <View style={styles.actionButtonIcon}><Text style={[styles.editActionIcon, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "✓" : "🏷"}</Text></View>
@@ -2385,10 +2379,13 @@ const styles = StyleSheet.create({
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaApproved: { color: "#8A6D1A", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },\n  rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
+  rebaixaApprovedText: { color: "#8A6D1A", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
+  rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
+  cardEditButton: { width: 32, height: 32, borderRadius: 8, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: 4, alignSelf: "center" },
+  cardEditText: { color: "#2E7D53", fontSize: 14, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#F8FAF7", borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28 },
