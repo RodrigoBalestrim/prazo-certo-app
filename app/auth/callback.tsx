@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 import * as Linking from "expo-linking";
 import * as QueryParams from "expo-auth-session/build/QueryParams";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "@/supabase";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -23,24 +23,41 @@ export default function AuthCallbackScreen() {
   const [failed, setFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const callbackUrl = Linking.useURL();
+  const routeParams = useLocalSearchParams<Record<string, string | string[]>>();
+  const routeParamsKey = JSON.stringify(routeParams);
 
   useEffect(() => {
     async function finishLogin() {
       try {
+        // Se a sessao ja foi criada (AuthScreen tambem processa o retorno),
+        // navega direto - nao fica preso na tela.
+        const current = await supabase.auth.getSession();
+        if (current.data.session) {
+          router.replace("/");
+          return;
+        }
+
         const url = callbackUrl || await Linking.getInitialURL();
-        if (!url) {
+        let params: Record<string, string> = {};
+        if (url) {
+          const parsed = QueryParams.getQueryParams(url);
+          if (parsed.errorCode) throw new Error(String(parsed.params.error_description || parsed.errorCode));
+          params = { ...parsed.params };
+        }
+        // Fallback: o expo-router ja parseou a URL em params de rota.
+        for (const [key, value] of Object.entries(routeParams)) {
+          if (typeof value === "string" && !params[key]) params[key] = value;
+        }
+
+        const accessToken = String(params.access_token || "");
+        const refreshToken = String(params.refresh_token || "");
+        const code = String(params.code || "");
+        if (!accessToken && !refreshToken && !code) {
           // Android (app ja aberto): o deep link pode chegar com atraso.
           // Na primeira montagem aguarda; so erra se o usuario tentar de novo.
           if (retryCount === 0) return;
           throw new Error("Endereço de retorno não encontrado.");
         }
-
-        const { params, errorCode } = QueryParams.getQueryParams(url);
-        if (errorCode) throw new Error(String(params.error_description || errorCode));
-
-        const accessToken = String(params.access_token || "");
-        const refreshToken = String(params.refresh_token || "");
-        const code = String(params.code || "");
 
         // Timeout de 20s: o projeto Free do Supabase hiberna e a primeira
         // chamada pode demorar; sem isso a tela trava para sempre.
@@ -75,7 +92,7 @@ export default function AuthCallbackScreen() {
     // chega no useURL() - antes, finishLogin nunca rodava e a tela ficava
     // travada em "Concluindo seu login..." para sempre.
     finishLogin();
-  }, [callbackUrl, retryCount]);
+  }, [callbackUrl, retryCount, routeParamsKey]);
 
   return (
     <SafeAreaView style={styles.page}>
