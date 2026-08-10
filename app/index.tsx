@@ -1965,13 +1965,11 @@ export default function HomeScreen() {
 
       {selectionMode && (
         <View style={[styles.pdfBar, bulkDeleteMode && styles.deleteBar]}>
-          <View>
-            <Text style={styles.pdfCount}>{selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}</Text>
-            <Text style={styles.pdfHint}>
-              {bulkDeleteMode
-                ? "Os produtos selecionados serão excluídos"
-                : "Escolha uma ação para os selecionados"}
-            </Text>
+          <View style={styles.barInfo}>
+            <Text style={styles.pdfCount} numberOfLines={1}>{selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}</Text>
+            {bulkDeleteMode ? (
+              <Text style={styles.pdfHint}>Os produtos selecionados serão excluídos</Text>
+            ) : null}
           </View>
           {bulkDeleteMode ? (
             <Pressable
@@ -2426,8 +2424,9 @@ const styles = StyleSheet.create({
   deleteBar: { backgroundColor: "#4B2421" },
   pdfCount: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   pdfHint: { color: "#AFCFC2", fontSize: 10, marginTop: 3 },
-  pdfButton: { minWidth: 104, height: 46, borderRadius: 13, backgroundColor: "#2A9167", alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
-  barActions: { flexDirection: "row", gap: 8 },
+  pdfButton: { minWidth: 92, height: 46, borderRadius: 13, backgroundColor: "#2A9167", alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
+  barActions: { flexDirection: "row", gap: 8, flexShrink: 0 },
+  barInfo: { flex: 1, marginRight: 10 },
   deleteSelectedButton: { backgroundColor: "#B54136" },
   rebaixaSelectedButton: { backgroundColor: "#B98A1F" },
   pdfButtonDisabled: { opacity: 0.45 },
