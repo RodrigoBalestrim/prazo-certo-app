@@ -77,7 +77,7 @@ export default function HomeScreen() {
   const [aiProcessing, setAiProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
-  const [bulkRebaixaMode, setBulkRebaixaMode] = useState(false);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [exportingPdf, setExportingPdf] = useState(false);
   const [removingSelected, setRemovingSelected] = useState(false);
@@ -944,30 +944,24 @@ export default function HomeScreen() {
   function closeSelectionMode() {
     setSelectionMode(false);
     setBulkDeleteMode(false);
-    setBulkRebaixaMode(false);
+
     setSelectedIds(new Set());
   }
 
   function startPdfSelection() {
     setBulkDeleteMode(false);
-    setBulkRebaixaMode(false);
+
     setSelectedIds(new Set());
     setSelectionMode(true);
   }
 
   function startBulkDelete() {
     setBulkDeleteMode(true);
-    setBulkRebaixaMode(false);
+
     setSelectedIds(new Set());
     setSelectionMode(true);
   }
 
-  function startBulkRebaixa() {
-    setBulkRebaixaMode(true);
-    setBulkDeleteMode(false);
-    setSelectedIds(new Set());
-    setSelectionMode(true);
-  }
 
   async function markSelectedRebaixa() {
     const selected = products.filter((product) => selectedIds.has(product.id));
@@ -1784,14 +1778,8 @@ export default function HomeScreen() {
 
               {products.length > 0 && (
                 <>
-                  <Pressable style={styles.selectButton} onPress={startPdfSelection}>
-                    <Text style={styles.selectButtonText}>▤ PDF</Text>
-                  </Pressable>
-                  {rolePermissions.canAdd ? (
-                    <Pressable style={styles.rebaixaSelectButton} onPress={startBulkRebaixa}>
-                      <Text style={styles.rebaixaSelectButtonText}>Rebaixa</Text>
-                    </Pressable>
-                  ) : null}
+
+
                   {rolePermissions.canDelete ? (
                     <Pressable style={styles.bulkDeleteButton} onPress={startBulkDelete}>
                       <Text style={styles.bulkDeleteButtonText}>Remover</Text>
@@ -1976,41 +1964,49 @@ export default function HomeScreen() {
       )}
 
       {selectionMode && (
-        <View style={[styles.pdfBar, bulkDeleteMode && styles.deleteBar, bulkRebaixaMode && styles.rebaixaBar]}>
+        <View style={[styles.pdfBar, bulkDeleteMode && styles.deleteBar]}>
           <View>
             <Text style={styles.pdfCount}>{selectedIds.size} selecionado{selectedIds.size === 1 ? "" : "s"}</Text>
             <Text style={styles.pdfHint}>
               {bulkDeleteMode
                 ? "Os produtos selecionados serão excluídos"
-                : bulkRebaixaMode
-                  ? "Os produtos selecionados serão marcados como rebaixa aprovada"
-                  : "Relatório de validade em PDF"}
+                : "Escolha uma ação para os selecionados"}
             </Text>
           </View>
-          <Pressable
-            style={[
-              styles.pdfButton,
-              bulkDeleteMode && styles.deleteSelectedButton,
-              bulkRebaixaMode && styles.rebaixaSelectedButton,
-              (!selectedIds.size || exportingPdf) && styles.pdfButtonDisabled,
-            ]}
-            disabled={!selectedIds.size || exportingPdf}
-            onPress={
-              bulkDeleteMode
-                ? removeSelectedProducts
-                : bulkRebaixaMode
-                  ? markSelectedRebaixa
-                  : generateSelectedPdf
-            }
-          >
-            {exportingPdf ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.pdfButtonText}>
-                {bulkDeleteMode ? "Remover" : bulkRebaixaMode ? "Marcar rebaixa" : "Gerar PDF"}
-              </Text>
-            )}
-          </Pressable>
+          {bulkDeleteMode ? (
+            <Pressable
+              style={[styles.pdfButton, styles.deleteSelectedButton, (!selectedIds.size || removingSelected) && styles.pdfButtonDisabled]}
+              disabled={!selectedIds.size || removingSelected}
+              onPress={removeSelectedProducts}
+            >
+              {removingSelected ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.pdfButtonText}>Remover</Text>
+              )}
+            </Pressable>
+          ) : (
+            <View style={styles.barActions}>
+              <Pressable
+                style={[styles.pdfButton, (!selectedIds.size || exportingPdf) && styles.pdfButtonDisabled]}
+                disabled={!selectedIds.size || exportingPdf}
+                onPress={generateSelectedPdf}
+              >
+                {exportingPdf ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.pdfButtonText}>Gerar PDF</Text>
+                )}
+              </Pressable>
+              <Pressable
+                style={[styles.pdfButton, styles.rebaixaSelectedButton, !selectedIds.size && styles.pdfButtonDisabled]}
+                disabled={!selectedIds.size}
+                onPress={markSelectedRebaixa}
+              >
+                <Text style={styles.pdfButtonText}>Rebaixa</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       )}
 
@@ -2347,8 +2343,6 @@ const styles = StyleSheet.create({
 
   bulkDeleteButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#F8E5E2" },
   bulkDeleteButtonText: { color: "#AC3B31", fontSize: 11, fontWeight: "800" },
-  rebaixaSelectButton: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8" },
-  rebaixaSelectButtonText: { color: "#8A6D1A", fontSize: 11, fontWeight: "800" },
   categorySelectorWrap: { paddingBottom: 10 },
   categorySelectorTitle: { color: "#66756E", fontSize: 11, fontWeight: "700", paddingHorizontal: 22, marginBottom: 8 },
   categorySelector: { paddingHorizontal: 22, gap: 7 },
@@ -2430,10 +2424,10 @@ const styles = StyleSheet.create({
   closeCameraText: { color: "#243D34", fontWeight: "800" },
   pdfBar: { position: "absolute", left: 16, right: 16, bottom: 14, minHeight: 76, borderRadius: 20, backgroundColor: "#173F32", paddingHorizontal: 17, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", shadowColor: "#0D2D23", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.24, shadowRadius: 14, elevation: 9 },
   deleteBar: { backgroundColor: "#4B2421" },
-  rebaixaBar: { backgroundColor: "#7A5F16" },
   pdfCount: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   pdfHint: { color: "#AFCFC2", fontSize: 10, marginTop: 3 },
   pdfButton: { minWidth: 104, height: 46, borderRadius: 13, backgroundColor: "#2A9167", alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
+  barActions: { flexDirection: "row", gap: 8 },
   deleteSelectedButton: { backgroundColor: "#B54136" },
   rebaixaSelectedButton: { backgroundColor: "#B98A1F" },
   pdfButtonDisabled: { opacity: 0.45 },
