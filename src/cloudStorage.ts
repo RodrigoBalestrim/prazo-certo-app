@@ -19,6 +19,8 @@ type ProductRow = {
   notes: string | null;
   archived: boolean | null;
   archived_at: string | null;
+  rebaixa_aprovada: boolean | null;
+  rebaixa_data: string | null;
   created_at: string;
 };
 
@@ -39,6 +41,8 @@ function fromRow(row: ProductRow): Product {
     notes: row.notes || undefined,
     archived: Boolean(row.archived),
     archivedAt: row.archived_at || undefined,
+    rebaixaAprovada: Boolean(row.rebaixa_aprovada),
+    rebaixaData: row.rebaixa_data || undefined,
     createdAt: row.created_at,
     notificationIds: [],
   };
@@ -63,6 +67,8 @@ function toRow(userId: string, organizationId: string | null, product: Product):
     notes: product.notes || null,
     archived: product.archived || false,
     archived_at: product.archivedAt || null,
+    rebaixa_aprovada: product.rebaixaAprovada || false,
+    rebaixa_data: product.rebaixaData || null,
     created_at: product.createdAt,
   };
 }

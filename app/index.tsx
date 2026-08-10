@@ -605,11 +605,7 @@ export default function HomeScreen() {
       await choosePhotoForAi(code);
       return;
     }
-    showAlert("Cadastro por IA", "Tire uma foto do produto ou escolha da galeria.", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Galeria", onPress: () => choosePhotoForAi(code) },
-      { text: "Tirar foto", onPress: () => takePhotoForAi(code) },
-    ]);
+    await takePhotoForAi(code);
   }
 
   async function choosePhotoForAi(code?: string) {
@@ -915,6 +911,17 @@ export default function HomeScreen() {
 
   function showProductActions(product: Product) {
     setActionProduct(product);
+  }
+
+  async function toggleRebaixa(product: Product) {
+    const approved = !product.rebaixaAprovada;
+    const updated = {
+      ...product,
+      rebaixaAprovada: approved,
+      rebaixaData: approved ? new Date().toISOString() : undefined,
+    };
+    await persist(products.map((item) => item.id === product.id ? updated : item));
+    setActionProduct(null);
   }
 
   async function removeProduct(product: Product) {
@@ -1892,9 +1899,13 @@ export default function HomeScreen() {
                   {days < 0 && (
                     <Text style={styles.expiredRemovalNotice}>⚠ Remover da seção</Text>
                   )}
-                  {hasExpiryAlert && (
+                  {item.rebaixaAprovada ? (
+                    <Text style={styles.rebaixaApproved}>
+                      ✓ Rebaixa aprovada{item.rebaixaData ? ` • ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
+                    </Text>
+                  ) : hasExpiryAlert ? (
                     <Text style={styles.markdownNotice}>⚠ Pedir rebaixa</Text>
-                  )}
+                  ) : null}
                   <View style={styles.cardMeta}>
                     <Text style={styles.categoryBadge}>{item.category || "Mercearia"}</Text>
                     <Text style={styles.details}>
@@ -1994,6 +2005,17 @@ export default function HomeScreen() {
                   <Text style={styles.editActionArrow}>›</Text>
                 </Pressable>
 
+                ) : null}
+
+                {rolePermissions.canAdd ? (
+                <Pressable style={styles.rebaixaActionButton} onPress={() => toggleRebaixa(actionProduct)}>
+                  <View style={styles.actionButtonIcon}><Text style={styles.editActionIcon}>{actionProduct.rebaixaAprovada ? "✗" : "🏷"}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.editActionTitle}>{actionProduct.rebaixaAprovada ? "Desmarcar rebaixa" : "Marcar rebaixa aprovada"}</Text>
+                    <Text style={styles.editActionDescription}>{actionProduct.rebaixaAprovada ? "Remover o selo deste produto" : "Registrar que a rebaixa foi aprovada"}</Text>
+                  </View>
+                  <Text style={styles.editActionArrow}>›</Text>
+                </Pressable>
                 ) : null}
 
                 {rolePermissions.canDelete ? (
@@ -2301,6 +2323,8 @@ const styles = StyleSheet.create({
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
   markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaApproved: { color: "#8A6D1A", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
   details: { color: "#8A938D", fontSize: 12 },

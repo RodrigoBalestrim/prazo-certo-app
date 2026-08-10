@@ -25,6 +25,8 @@ export type Product = {
   notes?: string;
   archived?: boolean;
   archivedAt?: string;
+  rebaixaAprovada?: boolean;
+  rebaixaData?: string;
   createdAt: string;
   notificationIds: string[];
 };
