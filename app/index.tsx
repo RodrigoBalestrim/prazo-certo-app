@@ -1923,7 +1923,7 @@ export default function HomeScreen() {
                   if (!selectionMode) setSelectionMode(true);
                   toggleProductSelection(item.id);
                 }}
-                onLongPress={() => showProductActions(item)}
+
               >
                 <View style={[styles.statusBar, { backgroundColor: color }]} />
                 {selectionMode && (
@@ -2384,8 +2384,8 @@ const styles = StyleSheet.create({
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
-  cardEditButton: { width: 32, height: 32, borderRadius: 8, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: 4, alignSelf: "center" },
-  cardEditText: { color: "#2E7D53", fontSize: 14, fontWeight: "700" },
+  cardEditButton: { position: "absolute", right: 10, bottom: 10, width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", zIndex: 2 },
+  cardEditText: { color: "#2E7D53", fontSize: 17, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#F8FAF7", borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28 },
