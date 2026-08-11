@@ -1967,6 +1967,7 @@ export default function HomeScreen() {
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
                 onPress={() => {
                   if (selectionMode) toggleProductSelection(item.id);
+                  else showProductActions(item);
                 }}
                 onLongPress={() => {
                   if (!selectionMode) setSelectionMode(true);
