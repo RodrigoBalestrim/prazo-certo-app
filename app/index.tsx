@@ -1961,7 +1961,7 @@ export default function HomeScreen() {
                 ? 15
                 : 30;
             const hasExpiryAlert = days >= 0 && days <= alertAdvanceDays;
-            const color = days < 0 ? "#000000" : days <= 3 ? "#B54708" : "#1E7A55";
+            const color = days < 0 ? "#000000" : days <= 7 ? "#B54708" : days <= 30 ? "#B98A1F" : "#1E7A55";
             return (
               <Pressable
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
