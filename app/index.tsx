@@ -1029,34 +1029,40 @@ export default function HomeScreen() {
   async function markSelectedRebaixa() {
     const selected = products.filter((product) => selectedIds.has(product.id));
     if (!selected.length) return;
+    const allApproved = selected.every((product) => product.rebaixaAprovada);
     showAlert(
-      "Marcar rebaixa aprovada",
-      `Marcar ${selected.length} produto${selected.length === 1 ? "" : "s"} como rebaixa aprovada?`,
+      allApproved ? "Desmarcar rebaixa" : "Marcar rebaixa aprovada",
+      allApproved
+        ? `Desmarcar ${selected.length} produto${selected.length === 1 ? "" : "s"}?`
+        : `Marcar ${selected.length} produto${selected.length === 1 ? "" : "s"} como rebaixa aprovada?`,
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Marcar",
+          text: allApproved ? "Desmarcar" : "Marcar",
           onPress: async () => {
             const now = new Date().toISOString();
             const marked = new Set(selected.map((product) => product.id));
             await persist(
               products.map((product) =>
                 marked.has(product.id)
-                  ? { ...product, rebaixaAprovada: true, rebaixaData: now }
+                  ? {
+                      ...product,
+                      rebaixaAprovada: !allApproved,
+                      rebaixaData: allApproved ? undefined : now,
+                    }
                   : product,
               ),
             );
             closeSelectionMode();
             showAlert(
-              "Rebaixa marcada",
-              `${selected.length} produto${selected.length === 1 ? "" : "s"} marcado${selected.length === 1 ? "" : "s"}.`,
+              allApproved ? "Rebaixa desmarcada" : "Rebaixa marcada",
+              `${selected.length} produto${selected.length === 1 ? "" : "s"} ${allApproved ? "desmarcado" : "marcado"}.`,
             );
           },
         },
       ],
     );
   }
-
   async function removeSelectedProducts() {
     if (removingSelected) return;
     showAlert(
