@@ -1,83 +1,53 @@
-# Compila o APK gratuitamente no GitHub Actions (sem depender da nuvem do EAS).
-# Repositório público = minutos grátis e ilimitados.
-# Como usar: aba Actions -> "Build APK (local)" -> "Run workflow" -> baixar o artefato.
-
-name: Build APK (local)
+name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [master]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
-      EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Setup Java (JDK 17)
-        uses: actions/setup-java@v4
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Instalar dependências
-        run: npm ci
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
 
-      - name: Gerar projeto Android (prebuild)
+      - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
+        env:
+          CI: 1
 
-      # IMPORTANTE: build debug por padrão NÃO embute o JS (espera o Metro).
-      # Sem isso, o APK instalado sozinho fica preso na splash.
-      # debuggableVariants = [] força o bundle JS dentro do APK debug.
-      # Keystore debug fixo commitado no repo: mesma assinatura em todos os
-      # builds. Sem isso, cada runner gera chave nova e instalar por cima
-      # falha (obriga desinstalar e apaga os dados locais do app).
-      - name: Usar keystore debug fixo
-        run: |
-          mkdir -p "$HOME/.android"
-          cp debug.keystore "$HOME/.android/debug.keystore"
-
-      - name: Embutir bundle JS no APK debug
-        run: |
-          python3 - <<'EOF'
-          p = "android/app/build.gradle"
-          s = open(p, encoding="utf-8").read()
-          if "debuggableVariants = []" not in s:
-              s = s.replace("react {", "react {\n        debuggableVariants = []", 1)
-              open(p, "w", encoding="utf-8").write(s)
-              print("patched: debuggableVariants = []")
-          else:
-              print("ja configurado")
-          EOF
-
-      - name: Compilar APK
+      - name: Build release APK (signed with debug keystore)
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
-
-      - name: Verificar JS embutido no APK
         run: |
-          python3 - <<'EOF'
-          import glob, zipfile
-          apk = glob.glob("android/app/build/outputs/apk/debug/*.apk")[0]
-          names = zipfile.ZipFile(apk).namelist()
-          ok = any(n.startswith("assets/") and (n.endswith(".bundle") or n.endswith(".hbc")) for n in names)
-          print("bundle JS presente:", ok)
-          if not ok:
-              raise SystemExit("APK sem bundle JS - app nao abre")
-          EOF
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/debug.keystore \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android
+        env:
+          CI: 1
 
-      - name: Enviar APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: prazo-certo-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

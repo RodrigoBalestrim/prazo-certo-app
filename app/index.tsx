@@ -36,6 +36,7 @@ import { HistoryScreen } from "@/components/HistoryScreen";
 import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
+import { normalizeBarcode } from "@/barcode";
 import { compressImageForUpload } from "@/imageUtils";
 import { supabase } from "@/supabase";
 import { AppAlert, AlertButton, AlertMessage } from "@/components/AppAlert";
@@ -562,16 +563,28 @@ export default function HomeScreen() {
   }
 
   function onFieldBarcodeScanned(value: string) {
+    const normalized = normalizeBarcode(value);
+    if (!normalized) {
+      showAlert("Código de barras inválido", "Não foi possível ler o código. Tente novamente.");
+      return;
+    }
     setScannerOpen(false);
     setScannerFieldOnly(false);
-    setBarcode(value);
+    setBarcode(normalized);
   }
 
   async function onBarcodeScanned(value: string) {
+    const normalized = normalizeBarcode(value);
+    if (!normalized) {
+      showAlert("Código de barras inválido", "Não foi possível ler o código. Tente novamente.");
+      return;
+    }
     setScannerOpen(false);
-    setBarcode(value);
+    setBarcode(normalized);
 
-    const existing = products.find((item) => item.barcode === value && !item.archived);
+    const existing = products.find(
+      (item) => (normalizeBarcode(item.barcode) ?? item.barcode) === normalized && !item.archived,
+    );
     if (existing) {
       showAlert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
         { text: "Cancelar", style: "cancel" },
@@ -582,7 +595,7 @@ export default function HomeScreen() {
 
     setFormOpen(true);
     setLookingUp(true);
-    const foundProduct = await lookupProduct(value);
+    const foundProduct = await lookupProduct(normalized);
     if (foundProduct?.name) setName(foundProduct.name);
     if (foundProduct?.imageUrl) setImageUrl(foundProduct.imageUrl);
     if (foundProduct?.category) setCategory(foundProduct.category);
@@ -594,7 +607,7 @@ export default function HomeScreen() {
         "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
         [
           { text: "Digitar manualmente", style: "cancel", onPress: () => setFormOpen(true) },
-          { text: "Cadastrar com IA", onPress: () => startAiPhoto(value) },
+          { text: "Cadastrar com IA", onPress: () => startAiPhoto(normalized) },
         ],
       );
     }
@@ -2379,7 +2392,7 @@ const styles = StyleSheet.create({
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
-  cardEditButton: { position: "absolute", right: 10, bottom: 10, width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", zIndex: 2 },
+  cardEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: "auto" },
   cardEditText: { color: "#2E7D53", fontSize: 17, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },

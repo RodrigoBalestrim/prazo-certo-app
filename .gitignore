@@ -29,3 +29,6 @@ supabase/.temp/
 
 # Origem do projeto Background-Removal-API (referencia)
 deploy/bg-api/src/
+
+# Projeto nativo gerado pelo prebuild
+android/
