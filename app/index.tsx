@@ -2007,7 +2007,11 @@ export default function HomeScreen() {
                   {days < 0 && (
                     <Text style={styles.expiredRemovalNotice}>⚠ Remover da seção</Text>
                   )}
-                  {!item.rebaixaAprovada && hasExpiryAlert ? (
+                  {item.rebaixaAprovada ? (
+                    <Text style={styles.rebaixaApprovedText}>
+                      ✓ Rebaixa aprovada{item.rebaixaData ? ` • ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
+                    </Text>
+                  ) : hasExpiryAlert ? (
                     <Text style={styles.markdownNotice}>⚠ Pedir rebaixa</Text>
                   ) : null}
                   <View style={styles.cardMeta}>
@@ -2449,7 +2453,8 @@ const styles = StyleSheet.create({
   badge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaApprovedText: { color: "#1E7A55", fontSize: 11, fontWeight: "800", marginTop: 5 },
+    markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
   rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
