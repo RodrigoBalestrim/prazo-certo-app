@@ -27,7 +27,7 @@ JavaScript (ES6+), TypeScript, React (componentes funcionais, hooks), Next.js, R
 ### Estilização e UI
 HTML5, CSS3, Tailwind CSS, Bootstrap, Framer Motion, Three.js, React Three Fiber, Swiper, React Icons, tsParticles, CSS responsivo
 ### Backend e dados
-Supabase (PostgreSQL, Auth, Edge Functions, Row Level Security), APIs REST, AsyncStorage
+Supabase (PostgreSQL, Auth, Edge Functions em Deno, Row Level Security), APIs REST, AsyncStorage
 ### IA generativa
 Google Gemini, OpenAI (via Edge Functions), engenharia de prompts
 ### Ferramentas
