@@ -44,6 +44,9 @@ function json(body: unknown, status = 200): Response {
 
 type ImageSource = { bytes: Uint8Array; mime: string };
 
+const MAX_INPUT_BASE64 = 8 * 1024 * 1024; // 8 MB decodificável
+const MAX_FETCH_BYTES = 6 * 1024 * 1024; // 6 MB de download
+
 type AiAnalysis = {
   name: string | null;
   brand: string | null;
@@ -95,6 +98,7 @@ async function resolveImage(body: {
   imageUrl?: string;
 }): Promise<ImageSource | null> {
   if (body.imageBase64) {
+    if (body.imageBase64.length > MAX_INPUT_BASE64) return null;
     const raw = body.imageBase64.trim();
     const comma = raw.indexOf(",");
     if (comma >= 0 && raw.slice(0, comma).includes("base64")) {
@@ -113,7 +117,20 @@ async function resolveImage(body: {
     if (!isSafeExternalUrl(body.imageUrl)) return null;
     const response = await fetch(body.imageUrl);
     if (!response.ok) return null;
-    const buffer = await response.arrayBuffer();
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.length;
+      if (received > MAX_FETCH_BYTES) return null;
+      chunks.push(value);
+    }
+    const buffer = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
     const mime =
       response.headers.get("content-type")?.split(";")[0]?.trim() ||
       "image/jpeg";
@@ -406,7 +423,9 @@ async function removeBackgroundWithSelfHosted(image: ImageSource): Promise<Uint8
         "product.jpg",
       );
       form.append("visualizar", "false");
-      const response = await fetch(url, { method: "POST", body: form });
+      const headers = new Headers();
+      if (REMOVE_BG_API_KEY) headers.set("Authorization", "Bearer " + REMOVE_BG_API_KEY);
+      const response = await fetch(url, { method: "POST", headers, body: form });
       if (response.ok) {
         const buffer = await response.arrayBuffer();
         if (buffer.byteLength > 0) return new Uint8Array(buffer);
@@ -537,6 +556,7 @@ Deno.serve(async (req) => {
 
     // Sobe a foto original para o bucket público (se veio do aparelho)
     if (body.imageBase64) {
+    if (body.imageBase64.length > MAX_INPUT_BASE64) return null;
       originalUrl = await uploadToStorage(
         supabase,
         "product-images",
@@ -618,3 +638,4 @@ Deno.serve(async (req) => {
     return json({ error: message }, 500);
   }
 });
+

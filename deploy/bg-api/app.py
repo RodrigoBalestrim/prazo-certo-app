@@ -7,28 +7,93 @@
 #     funcionar: o ponto mais forte vira 255 (opaco) e o mais fraco vira 0.
 #   - Cutout direto (naive_cutout): máscara vira canal alfa, sem morfologia.
 # Inferência leve: cabe no Render free (512 MB).
+#
+# SEGURANÇA:
+#   - Exige API key (BG_API_KEY) em Authorization: Bearer <chave>
+#   - Limita tamanho do upload, valida magic bytes da imagem e bloqueia
+#     "decompression bombs" via PIL MAX_IMAGE_PIXELS.
+#   - Rate limit simples por IP.
 
 import base64
 import io
 import os
+import time
 
 import numpy as np
 import uvicorn
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/u2netp.onnx")
+API_KEY = os.environ.get("BG_API_KEY", "")  # se vazio, endpoint fica bloqueado
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", 10 * 1024 * 1024))  # 10 MB
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("ALLOW_ORIGIN", "").split(",")
+    if o.strip()
+]
 
-app = FastAPI(title="Prazo Certo Background Removal", version="3.1.0")
+# Proteção contra bomba de descompressão (imagens gigantes com poucos bytes)
+Image.MAX_IMAGE_PIXELS = int(os.environ.get("MAX_IMAGE_PIXELS", 16_000_000))
+
+# Rate limit simples em memória (por IP): MAX_REQUESTS a cada WINDOW_SECONDS
+RATE_LIMIT = {"max": int(os.environ.get("RATE_LIMIT_MAX", 10)), "window": int(os.environ.get("RATE_LIMIT_WINDOW", 60))}
+_hits: dict[str, list[float]] = {}
+
+app = FastAPI(title="Prazo Certo Background Removal", version="3.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS or [],
+    allow_methods=["POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+MAGIC = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG\r\n\x1a\n",
+    "image/webp": b"RIFF",
+}
+
+
+def _client_ip(request):
+    if request.client is None:
+        return "unknown"
+    return request.client.host
+
+
+def _check_rate_limit(ip: str) -> None:
+    now = time.time()
+    _hits.setdefault(ip, [])
+    _hits[ip] = [t for t in _hits[ip] if now - t < RATE_LIMIT["window"]]
+    if len(_hits[ip]) >= RATE_LIMIT["max"]:
+        raise HTTPException(status_code=429, detail="Muitas requisições. Tente novamente em instantes.")
+    _hits[ip].append(now)
+
+
+def _authorize(authorization: str | None) -> None:
+    if not API_KEY:
+        raise HTTPException(status_code=503, detail="Serviço não configurado (BG_API_KEY ausente).")
+    if authorization != f"Bearer {API_KEY}":
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+
+
+def _validate_image(dados: bytes) -> bytes:
+    if not dados:
+        raise HTTPException(status_code=400, detail="Arquivo vazio")
+    if len(dados) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Arquivo acima do limite ({MAX_UPLOAD_BYTES // (1024*1024)} MB)")
+    header = dados[:16]
+    mime = None
+    for kind, magic in MAGIC.items():
+        if header.startswith(magic):
+            mime = kind
+            break
+    if mime is None:
+        raise HTTPException(status_code=415, detail="Formato não permitido (use JPEG, PNG ou WebP).")
+    return dados
 
 _session = None
 
@@ -46,8 +111,6 @@ def get_session():
 
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-
-
 def _norm_pred(out: np.ndarray) -> np.ndarray:
     """Equivalente ao norm_pred do nadermx: normalização min-max."""
     lo = float(out.min())
@@ -91,20 +154,18 @@ def remove_background(image_bytes: bytes) -> bytes:
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "servico": "Remocao de fundo gratuita (U2-Net + nadermx pipeline)"}
+    return {"status": "ok", "servico": "Remocao de fundo (U2-Net + nadermx pipeline)"}
 
 
 @app.post("/remover-fundo/")
-async def remover_fundo(file: UploadFile = File(...)):
-    dados = await file.read()
-    if not dados:
-        return {"erro": "Arquivo vazio"}
-
+async def remover_fundo(request: Request, file: UploadFile = File(...)):
+    _check_rate_limit(_client_ip(request))
+    _authorize(request.headers.get("authorization"))
+    dados = _validate_image(await file.read())
     try:
         png = remove_background(dados)
     except Exception as exc:  # noqa: BLE001
         return {"erro": f"Falha ao processar: {exc}"}
-
     return StreamingResponse(
         io.BytesIO(png),
         media_type="image/png",
@@ -113,7 +174,10 @@ async def remover_fundo(file: UploadFile = File(...)):
 
 
 @app.post("/debug/")
-async def debug(file: UploadFile = File(...)):
+async def debug(request: Request, file: UploadFile = File(...)):
+    _check_rate_limit(_client_ip(request))
+    _authorize(request.headers.get("authorization"))
+    dados = _validate_image(await file.read())
     """Diagnóstico: estatísticas da máscara + preview em base64 (256px)."""
     dados = await file.read()
     if not dados:

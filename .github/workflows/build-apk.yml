@@ -11,8 +11,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      EXPO_PUBLIC_SUPABASE_URL: https://lranrivzxemkwybtnvww.supabase.co
-      EXPO_PUBLIC_SUPABASE_KEY: sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       EXPO_PUBLIC_BUILD_SHA: ${{ github.sha }}
     steps:
       - name: Checkout

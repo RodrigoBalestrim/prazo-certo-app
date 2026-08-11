@@ -36,8 +36,8 @@ drop policy if exists "Users can complete a missing catalog image" on public.pro
 create policy "Users can complete a missing catalog image"
 on public.product_catalog for update
 to authenticated
-using (image_url is null)
-with check (image_url is not null);
+using ((select auth.uid()) = created_by and image_url is null)
+with check ((select auth.uid()) = created_by and image_url is not null);
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -75,6 +75,15 @@ using (
   and (storage.foldername(name))[1] = auth.uid()::text
 )
 with check (
+  bucket_id = 'product-images'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "Users delete their own product images" on storage.objects;
+create policy "Users delete their own product images"
+on storage.objects for delete
+to authenticated
+using (
   bucket_id = 'product-images'
   and (storage.foldername(name))[1] = auth.uid()::text
 );

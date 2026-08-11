@@ -231,7 +231,15 @@ create policy "Equipe remove produtos"
 on public.products for delete to authenticated
 using (
   (organization_id is null and user_id = auth.uid())
-  or public.is_organization_member(organization_id)
+  or (
+    public.is_organization_member(organization_id)
+    and exists (
+      select 1 from public.organization_members m
+      where m.organization_id = products.organization_id
+        and m.user_id = auth.uid()
+        and m.role in ('owner','admin')
+    )
+  )
 );
 
 grant select on public.organizations to authenticated;
@@ -265,3 +273,4 @@ begin
   end if;
 end
 $$;
+

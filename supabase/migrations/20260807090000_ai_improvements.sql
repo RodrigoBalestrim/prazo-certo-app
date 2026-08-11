@@ -516,3 +516,13 @@ grant execute on function public.can_edit_products() to authenticated;
 grant execute on function public.can_delete_products() to authenticated;
 grant execute on function public.insert_audit_log(text, text, text, text, text, text) to authenticated;
 grant execute on function public.update_member_role(uuid, text) to authenticated;
+
+-- Usuarios podem apagar apenas as proprias fotos sem fundo
+drop policy if exists "Users delete their own cutout images" on storage.objects;
+create policy "Users delete their own cutout images"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'product-cutouts'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);

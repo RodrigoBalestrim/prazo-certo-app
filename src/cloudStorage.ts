@@ -135,9 +135,18 @@ export async function loadCloudArchivedProducts(
 }
 
 // Exclusão definitiva do histórico (somente admin — RLS valida).
-export async function deleteCloudProducts(ids: string[]): Promise<void> {
+export async function deleteCloudProducts(
+  ids: string[],
+  scope?: { userId?: string; organizationId?: string | null },
+): Promise<void> {
   if (!ids.length) return;
-  const { error } = await supabase.from("products").delete().in("id", ids);
+  let query = supabase.from("products").delete().in("id", ids);
+  if (scope?.organizationId != null) {
+    query = query.eq("organization_id", scope.organizationId);
+  } else if (scope?.userId) {
+    query = query.eq("user_id", scope.userId).is("organization_id", null);
+  }
+  const { error } = await query;
   if (error) throw error;
 }
 
@@ -150,9 +159,12 @@ export async function updateCloudProduct(
   product: Product,
 ): Promise<void> {
   const row = toRow(userId, organizationId, product);
-  if (organizationId) delete (row as { user_id?: string }).user_id;
-  let query = supabase.from("products").update(row).eq("id", product.id);
-  if (!organizationId) query = query.eq("user_id", userId);
+    if (organizationId) {
+    delete (row as { user_id?: string }).user_id;
+    query = query.eq("organization_id", organizationId);
+  } else {
+    query = query.eq("user_id", userId).is("organization_id", null);
+  }
   const { error } = await query;
   if (error) throw error;
 }
