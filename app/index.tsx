@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import type { Session } from "@supabase/supabase-js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -66,6 +66,10 @@ export default function HomeScreen() {
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [barcode, setBarcode] = useState("");
+  // Fila de retry da remoção de fundo: produtos que falharam continuam
+  // sendo reprocessados em segundo plano até conseguir.
+  const pendingCutoutsRef = useRef<Set<string>>(new Set());
+  const cutoutRunningRef = useRef<Set<string>>(new Set());
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [category, setCategory] = useState<ProductCategory>("Mercearia");
@@ -715,6 +719,38 @@ export default function HomeScreen() {
     }
   }
 
+  // Re-processa produtos ainda sem fundo removido: na abertura e a cada 90s.
+  useEffect(() => {
+    if (!session?.user.id || loading) return;
+    for (const item of products) {
+      if (item.imageUrl && !item.photoCutoutUrl) {
+        pendingCutoutsRef.current.add(item.id);
+      }
+    }
+  }, [products, loading, session?.user.id]);
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+    const timer = setInterval(async () => {
+      if (AppState.currentState !== "active") return;
+      const ids = [...pendingCutoutsRef.current];
+      if (!ids.length) return;
+      const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+      const latest = await loadProducts(scopeKey);
+      for (const id of ids) {
+        const item = latest.find((prod) => prod.id === id);
+        if (!item || item.photoCutoutUrl) {
+          pendingCutoutsRef.current.delete(id);
+          continue;
+        }
+        if (item.imageUrl && !cutoutRunningRef.current.has(id)) {
+          processPhotoCutoutForProduct(item).catch(() => undefined);
+        }
+      }
+    }, 90000);
+    return () => clearInterval(timer);
+  }, [session?.user.id, company?.id]);
+
   // Remove o fundo da foto em segundo plano, apos o cadastro, e atualiza o
   // produto automaticamente quando o resultado fica pronto.
   async function processPhotoCutoutForProduct(product: Product) {
@@ -722,8 +758,10 @@ export default function HomeScreen() {
     const photoUri = product.photoOriginalUrl || product.imageUrl || "";
     // S? tenta se a Edge Function conseguir baixar a foto (URL remota ou data URI).
     if (!/^(https?:|data:image\/)/.test(photoUri)) return;
+    if (cutoutRunningRef.current.has(product.id)) return;
+    cutoutRunningRef.current.add(product.id);
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const result = await analyzeProductWithAi({
           barcode: product.barcode,
@@ -756,15 +794,22 @@ export default function HomeScreen() {
               }
             }
           }
+          pendingCutoutsRef.current.delete(product.id);
+          cutoutRunningRef.current.delete(product.id);
           return;
         }
         // Ainda sem resultado: se foi a 1? tentativa, espera e tenta de novo
         // (cobre o cold start do servi?o de fundo).
         if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 4000));
+        if (attempt === 2) await new Promise((resolve) => setTimeout(resolve, 15000));
       } catch {
         if (attempt === 1) await new Promise((resolve) => setTimeout(resolve, 4000));
+        if (attempt === 2) await new Promise((resolve) => setTimeout(resolve, 15000));
       }
     }
+    // Falhou nas tentativas: mantém na fila e continua reprocessando até dar certo.
+    pendingCutoutsRef.current.add(product.id);
+    cutoutRunningRef.current.delete(product.id);
   }
 
   async function processPhotoWithAi(product: Product) {
