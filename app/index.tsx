@@ -78,6 +78,7 @@ export default function HomeScreen() {
   const [description, setDescription] = useState("");
   const [packagingType, setPackagingType] = useState("");
   const [cutoutUrl, setCutoutUrl] = useState("");
+  const [rebaixaApproved, setRebaixaApproved] = useState(false);
   const [photoOriginal, setPhotoOriginal] = useState("");
   const [aiProcessing, setAiProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -537,6 +538,7 @@ export default function HomeScreen() {
     setPackagingType("");
     setCutoutUrl("");
     setPhotoOriginal("");
+    setRebaixaApproved(false);
     setEditingId(null);
   }
 
@@ -922,6 +924,8 @@ export default function HomeScreen() {
       expiresAt,
       quantity: numericQuantity,
       notes: notes.trim() || undefined,
+      rebaixaAprovada: editingId ? rebaixaApproved : false,
+      rebaixaData: editingId && rebaixaApproved ? (existing?.rebaixaData || new Date().toISOString()) : undefined,
       archived: existing?.archived || false,
       archivedAt: existing?.archivedAt,
       createdAt: existing?.createdAt || new Date().toISOString(),
@@ -965,6 +969,7 @@ export default function HomeScreen() {
     setQuantity(String(product.quantity));
     setCategory(product.category || "Mercearia");
     setNotes(product.notes || "");
+    setRebaixaApproved(Boolean(product.rebaixaAprovada));
     setFormOpen(true);
   }
 
@@ -1967,7 +1972,6 @@ export default function HomeScreen() {
                 style={[styles.card, selectedIds.has(item.id) && styles.cardSelected]}
                 onPress={() => {
                   if (selectionMode) toggleProductSelection(item.id);
-                  else showProductActions(item);
                 }}
                 onLongPress={() => {
                   if (!selectionMode) setSelectionMode(true);
@@ -2233,6 +2237,17 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {editingId ? (
+              <View style={styles.rebaixaFormRow}>
+                <Text style={styles.label}>Rebaixa aprovada</Text>
+                <Switch
+                  value={rebaixaApproved}
+                  onValueChange={setRebaixaApproved}
+                  trackColor={{ true: "#1E7A55" }}
+                />
+              </View>
+            ) : null}
+
             <Text style={styles.hint}>
               {category === "Açougue" || category === "Frios/PAS"
                   ? "Avisos: 15 dias, 7 dias, 1 dia antes e no vencimento."
@@ -2463,6 +2478,7 @@ const styles = StyleSheet.create({
   categoryOptionText: { color: "#5E6C65", fontSize: 12, fontWeight: "700" },
   categoryOptionTextActive: { color: "#FFF" },
   row: { flexDirection: "row", gap: 10 },
+  rebaixaFormRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 },
   hint: { color: "#768078", fontSize: 12, lineHeight: 18, marginTop: 15 },
   saveButton: { height: 53, backgroundColor: "#1E7A55", borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 20 },
   saveText: { color: "#FFF", fontWeight: "800", fontSize: 16 },
