@@ -2392,7 +2392,7 @@ const styles = StyleSheet.create({
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
-  cardEditButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", marginLeft: "auto" },
+  cardEditButton: { position: "absolute", right: 10, top: "50%", marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", zIndex: 2 },
   cardEditText: { color: "#2E7D53", fontSize: 17, fontWeight: "700" },
   details: { color: "#8A938D", fontSize: 12 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(12,30,23,.48)", justifyContent: "flex-end" },
