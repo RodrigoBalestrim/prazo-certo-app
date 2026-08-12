@@ -14,6 +14,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -79,6 +80,7 @@ export default function HomeScreen() {
   const [packagingType, setPackagingType] = useState("");
   const [cutoutUrl, setCutoutUrl] = useState("");
   const [rebaixaApproved, setRebaixaApproved] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [photoOriginal, setPhotoOriginal] = useState("");
   const [aiProcessing, setAiProcessing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -504,6 +506,25 @@ export default function HomeScreen() {
       await clearSyncPending(scopeKey);
     } catch {
       // Sem internet ainda; tenta novamente na próxima ativação do app.
+    }
+  }
+
+  // Atualiza a lista puxando a nuvem (grupo/pessoal), como pull-to-refresh.
+  async function refreshProducts() {
+    if (!session?.user.id || refreshing || isDemo) return;
+    setRefreshing(true);
+    try {
+      await syncPendingChanges();
+      const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
+      const remote = await withTimeout(loadCloudProducts(company?.id ?? null, session.user.id), 12000);
+      const next = remote.length ? remote : await loadProducts(scopeKey);
+      setProducts(next);
+      await saveProducts(next, scopeKey);
+      await clearSyncPending(scopeKey);
+    } catch {
+      // Mantem a lista atual; sem alerta para nao incomodar o gesto.
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -1952,6 +1973,14 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           data={sorted}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refreshProducts}
+              colors={["#1E7A55"]}
+              tintColor={"#1E7A55"}
+            />
+          }
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             sorted.length ? styles.list : styles.emptyWrap,
