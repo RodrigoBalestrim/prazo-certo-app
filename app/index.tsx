@@ -57,6 +57,7 @@ export default function HomeScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [company, setCompany] = useState<CompanyMembership | null>(null);
+  const lastCompanyRef = useRef<CompanyMembership | null>(null);
   const [companyLoading, setCompanyLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,6 +181,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!session?.user.id) {
       setCompany(null);
+      lastCompanyRef.current = null;
       setCompanyLoading(false);
       return;
     }
@@ -193,7 +195,10 @@ export default function HomeScreen() {
     setCompanyLoading(true);
     withTimeout(loadMyCompany(), 8000)
       .then((value) => {
-        if (active) setCompany(value);
+        if (active) {
+          setCompany(value);
+          lastCompanyRef.current = value;
+        }
       })
       .catch(() => {
         if (active) {
@@ -1490,6 +1495,7 @@ export default function HomeScreen() {
       >
         <View style={styles.profileMenuBackdrop}>
           <View style={styles.profileMenu}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
             <Pressable
               style={styles.profileMenuHeader}
               onPress={() => openMenuScreen("profile")}
@@ -1531,6 +1537,7 @@ export default function HomeScreen() {
                 <Pressable
                   style={styles.profileMenuJoin}
                   onPress={() => {
+                    lastCompanyRef.current = company;
                     setProfileMenuOpen(false);
                     setCompany(null);
                   }}
@@ -1546,6 +1553,18 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuCompanyName}>Lista pessoal</Text>
                   <Text style={styles.profileMenuCode}>Somente você pode ver estes produtos.</Text>
                 </View>
+                {lastCompanyRef.current ? (
+                  <Pressable
+                    style={styles.profileMenuJoin}
+                    onPress={() => {
+                      setProfileMenuOpen(false);
+                      setCompany(lastCompanyRef.current);
+                    }}
+                  >
+                    <Text style={styles.profileMenuJoinText}>Voltar para {lastCompanyRef.current.name}</Text>
+                    <Text style={styles.profileMenuManageArrow}>›</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   style={[styles.profileMenuManage, styles.profileMenuCreate]}
                   onPress={() => {
@@ -1625,10 +1644,12 @@ export default function HomeScreen() {
                 <Text style={styles.profileMenuOptionArrow}>›</Text>
               </Pressable>
             </View>
+            </ScrollView>
             <Pressable
               style={styles.profileMenuExit}
               onPress={async () => {
                 setProfileMenuOpen(false);
+                lastCompanyRef.current = null;
                 await supabase.auth.signOut();
               }}
             >
@@ -2394,7 +2415,7 @@ const styles = StyleSheet.create({
   profileMenuOptionIconText: { color: "#1E7A55", fontSize: 12, fontWeight: "900" },
   profileMenuOptionText: { flex: 1, color: "#29483D", fontSize: 13, fontWeight: "700" },
   profileMenuOptionArrow: { color: "#8CA097", fontSize: 22, fontWeight: "600" },
-  profileMenuExit: { marginTop: "auto", marginBottom: 34, minHeight: 50, borderRadius: 15, backgroundColor: "#F4E4E1", alignItems: "center", justifyContent: "center" },
+  profileMenuExit: { marginTop: 8, marginBottom: 24, minHeight: 50, borderRadius: 15, backgroundColor: "#F4E4E1", alignItems: "center", justifyContent: "center" },
   profileMenuExitText: { color: "#A13A2F", fontSize: 14, fontWeight: "800" },
   menuScreenBackdrop: { flex: 1, backgroundColor: "rgba(10,28,21,.52)", justifyContent: "flex-end" },
   menuScreenDismiss: { flex: 1 },
