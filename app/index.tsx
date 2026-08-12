@@ -398,17 +398,16 @@ export default function HomeScreen() {
 
   async function chooseProductPhoto() {
     if (Platform.OS !== "web") {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        showAlert("Permissão necessária", "Permita o acesso às fotos para escolher uma imagem.");
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permissionResult.granted) {
+        showAlert("Câmera necessária", "Permita o acesso à câmera para fotografar o produto.");
         return;
       }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      base64: true,
-    });
+    const result =
+      Platform.OS === "web"
+        ? await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7, base64: true })
+        : await ImagePicker.launchCameraAsync({ quality: 0.7, base64: true });
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
       const uri = asset.base64
@@ -421,7 +420,6 @@ export default function HomeScreen() {
       setCutoutUrl("");
     }
   }
-
   async function saveProfile() {
     let avatarUrl = profilePhotoDraft.trim();
     if (
@@ -1530,6 +1528,16 @@ export default function HomeScreen() {
                     <Text style={styles.profileMenuManageArrow}>›</Text>
                   </Pressable>
                 ) : null}
+                <Pressable
+                  style={styles.profileMenuJoin}
+                  onPress={() => {
+                    setProfileMenuOpen(false);
+                    setCompany(null);
+                  }}
+                >
+                  <Text style={styles.profileMenuJoinText}>Usar lista pessoal</Text>
+                  <Text style={styles.profileMenuManageArrow}>›</Text>
+                </Pressable>
               </>
             ) : (
               <>
