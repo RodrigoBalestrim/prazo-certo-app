@@ -35,7 +35,7 @@ import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
 import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
-import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompany } from "@/company";
+import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompanies, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { normalizeBarcode } from "@/barcode";
 import { compressImageForUpload } from "@/imageUtils";
@@ -57,6 +57,7 @@ export default function HomeScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [company, setCompany] = useState<CompanyMembership | null>(null);
+  const [companies, setCompanies] = useState<CompanyMembership[]>([]);
   const lastCompanyRef = useRef<CompanyMembership | null>(null);
   const [companyLoading, setCompanyLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
@@ -193,11 +194,13 @@ export default function HomeScreen() {
 
     let active = true;
     setCompanyLoading(true);
-    withTimeout(loadMyCompany(), 8000)
+    withTimeout(loadMyCompanies(), 8000)
       .then((value) => {
         if (active) {
-          setCompany(value);
-          lastCompanyRef.current = value;
+          setCompanies(value);
+          const first = value[0] ?? null;
+          setCompany(first);
+          lastCompanyRef.current = first;
         }
       })
       .catch(() => {
@@ -1395,6 +1398,11 @@ export default function HomeScreen() {
       <>
         <CompanyScreen
         onReady={(nextCompany) => {
+          setCompanies((prev) => {
+            const others = prev.filter((c) => c.id !== nextCompany.id);
+            return [...others, nextCompany];
+          });
+          lastCompanyRef.current = nextCompany;
           setCompany(nextCompany);
           setCompanySetupOpen(false);
         }}
@@ -1534,6 +1542,27 @@ export default function HomeScreen() {
                     <Text style={styles.profileMenuManageArrow}>›</Text>
                   </Pressable>
                 ) : null}
+                {companies.filter((c) => c.id !== company.id).length > 0 ? (
+                  <View style={styles.profileMenuCompany}>
+                    <Text style={styles.profileMenuLabel}>TROCAR DE GRUPO</Text>
+                    {companies
+                      .filter((c) => c.id !== company.id)
+                      .map((c) => (
+                        <Pressable
+                          key={c.id}
+                          style={styles.profileMenuJoin}
+                          onPress={() => {
+                            setProfileMenuOpen(false);
+                            setCompany(c);
+                            lastCompanyRef.current = c;
+                          }}
+                        >
+                          <Text style={styles.profileMenuJoinText}>{c.name}</Text>
+                          <Text style={styles.profileMenuManageArrow}>›</Text>
+                        </Pressable>
+                      ))}
+                  </View>
+                ) : null}
                 <Pressable
                   style={styles.profileMenuJoin}
                   onPress={() => {
@@ -1553,17 +1582,24 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuCompanyName}>Lista pessoal</Text>
                   <Text style={styles.profileMenuCode}>Somente você pode ver estes produtos.</Text>
                 </View>
-                {lastCompanyRef.current ? (
-                  <Pressable
-                    style={styles.profileMenuJoin}
-                    onPress={() => {
-                      setProfileMenuOpen(false);
-                      setCompany(lastCompanyRef.current);
-                    }}
-                  >
-                    <Text style={styles.profileMenuJoinText}>Usar lista de grupo</Text>
-                    <Text style={styles.profileMenuManageArrow}>›</Text>
-                  </Pressable>
+                {companies.length > 0 ? (
+                  <View style={styles.profileMenuCompany}>
+                    <Text style={styles.profileMenuLabel}>SEUS GRUPOS</Text>
+                    {companies.map((c) => (
+                      <Pressable
+                        key={c.id}
+                        style={styles.profileMenuJoin}
+                        onPress={() => {
+                          setProfileMenuOpen(false);
+                          setCompany(c);
+                          lastCompanyRef.current = c;
+                        }}
+                      >
+                        <Text style={styles.profileMenuJoinText}>{c.name}</Text>
+                        <Text style={styles.profileMenuManageArrow}>›</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 ) : null}
                 <Pressable
                   style={[styles.profileMenuManage, styles.profileMenuCreate]}

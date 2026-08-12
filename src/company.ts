@@ -78,6 +78,36 @@ export async function loadMyCompany(): Promise<CompanyMembership | null> {
   };
 }
 
+export async function loadMyCompanies(): Promise<CompanyMembership[]> {
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("role, organizations(id, name, company_name, sector, company_logo_url, invite_code)")
+    .order("joined_at", { ascending: true });
+  if (error) throw error;
+
+  const companies: CompanyMembership[] = [];
+  for (const membership of data ?? []) {
+    const company = (membership as unknown as { organizations: {
+      id: string;
+      name: string;
+      company_name: string | null;
+      sector: string | null;
+      company_logo_url: string | null;
+      invite_code: string;
+    } | null }).organizations;
+    if (!company) continue;
+    companies.push({
+      id: company.id,
+      name: company.name,
+      companyName: company.company_name || company.name,
+      sector: company.sector || undefined,
+      logoUrl: company.company_logo_url || undefined,
+      inviteCode: company.invite_code,
+      role: membership.role as CompanyRole,
+    });
+  }
+  return companies;
+}
 export async function createCompany(
   name: string,
   companyName?: string,
