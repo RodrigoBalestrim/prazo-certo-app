@@ -11,8 +11,7 @@ create table if not exists public.organization_members (
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null default 'member' check (role in ('owner', 'admin', 'member')),
   joined_at timestamptz not null default now(),
-  primary key (organization_id, user_id),
-  unique (user_id)
+  primary key (organization_id, user_id)
 );
 
 alter table public.products
@@ -43,9 +42,6 @@ declare
   new_invite_code text;
 begin
   if auth.uid() is null then raise exception 'Usuário não autenticado'; end if;
-  if exists (select 1 from organization_members where user_id = auth.uid()) then
-    raise exception 'Você já participa de uma empresa';
-  end if;
   if char_length(trim(company_name)) < 2 then raise exception 'Informe um nome válido'; end if;
 
   loop
@@ -74,9 +70,6 @@ declare
   target_id uuid;
 begin
   if auth.uid() is null then raise exception 'Usuário não autenticado'; end if;
-  if exists (select 1 from organization_members where user_id = auth.uid()) then
-    raise exception 'Você já participa de uma empresa';
-  end if;
 
   select id into target_id
   from organizations
