@@ -612,35 +612,47 @@ export default function HomeScreen() {
     const existing = products.find(
       (item) => (normalizeBarcode(item.barcode) ?? item.barcode) === normalized && !item.archived,
     );
+
+    const openAddFlow = async () => {
+      setFormOpen(true);
+      setLookingUp(true);
+      const foundProduct = await lookupProduct(normalized);
+      if (foundProduct?.name) setName(foundProduct.name);
+      if (foundProduct?.imageUrl) setImageUrl(foundProduct.imageUrl);
+      if (foundProduct?.category) setCategory(foundProduct.category);
+      if (!foundProduct?.name && !foundProduct?.imageUrl) {
+        setFormOpen(false);
+        showAlert(
+          "Produto não encontrado",
+          "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
+          [
+            { text: "Digitar manualmente", style: "cancel", onPress: () => setFormOpen(true) },
+            { text: "Cadastrar com IA", onPress: () => startAiPhoto(normalized) },
+          ],
+        );
+      }
+      setLookingUp(false);
+    };
+
     if (existing) {
-      showAlert("Produto já cadastrado", `${existing.name} já está na sua lista.`, [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Editar", onPress: () => editProduct(existing) },
-      ]);
-      return;
-    }
-
-    setFormOpen(true);
-    setLookingUp(true);
-    const foundProduct = await lookupProduct(normalized);
-    if (foundProduct?.name) setName(foundProduct.name);
-    if (foundProduct?.imageUrl) setImageUrl(foundProduct.imageUrl);
-    if (foundProduct?.category) setCategory(foundProduct.category);
-
-    if (!foundProduct?.name && !foundProduct?.imageUrl) {
-      setFormOpen(false);
       showAlert(
-        "Produto não encontrado",
-        "O código foi lido, mas o produto não está na base. Cadastre por foto com IA ou digite os dados manualmente.",
+        "Produto já cadastrado",
+        `${existing.name} já está na sua lista com validade ${formatBrazilianDate(existing.expiresAt)}. Adicionar outra validade?`,
         [
-          { text: "Digitar manualmente", style: "cancel", onPress: () => setFormOpen(true) },
-          { text: "Cadastrar com IA", onPress: () => startAiPhoto(normalized) },
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Adicionar nova validade",
+            onPress: () => {
+              openAddFlow().catch(() => undefined);
+            },
+          },
+          { text: "Editar", onPress: () => editProduct(existing) },
         ],
       );
+      return;
     }
-    setLookingUp(false);
+    openAddFlow().catch(() => undefined);
   }
-
   async function startAiPhoto(code?: string) {
     if (Platform.OS === "web") {
       await choosePhotoForAi(code);
@@ -899,6 +911,20 @@ export default function HomeScreen() {
     }
 
     const expiresAt = dateToIso(parsedDate);
+    // Mesmo código com validade diferente é permitido (ex.: dois pacotes).
+    if (!editingId && barcode.trim()) {
+      const dupeSameDate = products.some(
+        (item) =>
+          !item.archived &&
+          item.expiresAt === expiresAt &&
+          (normalizeBarcode(item.barcode) ?? item.barcode) === barcode.trim(),
+      );
+      if (dupeSameDate) {
+        showAlert("Validade já cadastrada", "Já existe um produto com esse código e essa validade.");
+        return;
+      }
+    }
+
     const existing = editingId
       ? products.find((item) => item.id === editingId)
       : undefined;
