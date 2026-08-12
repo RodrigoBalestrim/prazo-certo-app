@@ -1527,7 +1527,7 @@ export default function HomeScreen() {
                   {company.logoUrl ? (
                     <Image source={{ uri: company.logoUrl }} style={styles.profileCompanyLogo} />
                   ) : null}
-                  <Text style={[styles.profileMenuCompanyName, styles.profileMenuCompanyNameActive]}>{company.name}</Text>
+                  <Text style={styles.profileMenuCompanyName}>{company.name}</Text>
                   <Text style={styles.profileMenuCode}>Código para entrar: {company.inviteCode}</Text>
                 </View>
                 {company.role === "owner" || company.role === "admin" ? (
@@ -1543,8 +1543,8 @@ export default function HomeScreen() {
                   </Pressable>
                 ) : null}
                 {companies.filter((c) => c.id !== company.id).length > 0 ? (
-                  <View style={styles.profileMenuCompany}>
-                    <Text style={styles.profileMenuLabel}>TROCAR DE GRUPO</Text>
+                  <>
+                    <Text style={[styles.profileMenuLabel, styles.profileMenuSectionSpacing]}>TROCAR DE GRUPO</Text>
                     {companies
                       .filter((c) => c.id !== company.id)
                       .map((c) => (
@@ -1561,7 +1561,7 @@ export default function HomeScreen() {
                           <Text style={styles.profileMenuManageArrow}>›</Text>
                         </Pressable>
                       ))}
-                  </View>
+                  </>
                 ) : null}
                 <Pressable
                   style={styles.profileMenuJoin}
@@ -1583,8 +1583,8 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuCode}>Somente você pode ver estes produtos.</Text>
                 </View>
                 {companies.length > 0 ? (
-                  <View style={styles.profileMenuCompany}>
-                    <Text style={styles.profileMenuLabel}>SEUS GRUPOS</Text>
+                  <>
+                    <Text style={[styles.profileMenuLabel, styles.profileMenuSectionSpacing]}>SEUS GRUPOS</Text>
                     {companies.map((c) => (
                       <Pressable
                         key={c.id}
@@ -1599,7 +1599,7 @@ export default function HomeScreen() {
                         <Text style={styles.profileMenuManageArrow}>›</Text>
                       </Pressable>
                     ))}
-                  </View>
+                  </>
                 ) : null}
                 <Pressable
                   style={[styles.profileMenuManage, styles.profileMenuCreate]}
@@ -2435,8 +2435,8 @@ const styles = StyleSheet.create({
   profileCompanyLogo: { width: 52, height: 52, borderRadius: 12, resizeMode: "contain", backgroundColor: "#FFF", borderWidth: 1, borderColor: "#D8E4DC", marginTop: 8 },
   profileMenuPersonal: { backgroundColor: "#E8F2EC", borderRadius: 16, padding: 16, marginTop: 22 },
   profileMenuLabel: { color: "#6C7C73", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  profileMenuSectionSpacing: { marginTop: 22, marginBottom: 4, paddingHorizontal: 4 },
   profileMenuCompanyName: { color: "#174D3B", fontSize: 17, fontWeight: "800", marginTop: 7 },
-  profileMenuCompanyNameActive: { fontSize: 18, color: "#1E7A55" },
   profileMenuCode: { color: "#567066", fontSize: 12, marginTop: 5 },
   profileMenuManage: { marginTop: 12, minHeight: 52, borderRadius: 14, backgroundColor: "#E5AC4F", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileMenuManageText: { color: "#173D31", fontSize: 14, fontWeight: "900" },
