@@ -245,7 +245,7 @@ export default function HomeScreen() {
           const localPending = await loadProducts(scopeKey);
           if (localPending.length) {
             try {
-              await replaceCloudProducts(session.user.id, company?.id ?? null, localPending);
+              await withTimeout(replaceCloudProducts(session.user.id, company?.id ?? null, localPending), 12000);
               await clearSyncPending(scopeKey);
             } catch {
               if (active) setProducts(localPending);
@@ -258,7 +258,7 @@ export default function HomeScreen() {
         }
 
         // 2) Sincroniza com a nuvem normalmente
-        const remoteProducts = await loadCloudProducts(company?.id ?? null, session.user.id);
+        const remoteProducts = await withTimeout(loadCloudProducts(company?.id ?? null, session.user.id), 12000);
         if (!active) return;
         if (remoteProducts.length) {
           setProducts(remoteProducts);
@@ -285,7 +285,7 @@ export default function HomeScreen() {
           : cachedProducts;
         setProducts(legacyProducts);
         if (legacyProducts.length && !company) {
-          await replaceCloudProducts(session.user.id, null, legacyProducts);
+          await withTimeout(replaceCloudProducts(session.user.id, null, legacyProducts), 12000);
           await saveProducts(legacyProducts, scopeKey);
         }
       } catch {
