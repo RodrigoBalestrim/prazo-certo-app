@@ -1561,7 +1561,7 @@ export default function HomeScreen() {
                       setCompany(lastCompanyRef.current);
                     }}
                   >
-                    <Text style={styles.profileMenuJoinText}>Voltar para {lastCompanyRef.current.name}</Text>
+                    <Text style={styles.profileMenuJoinText}>Usar lista de grupo</Text>
                     <Text style={styles.profileMenuManageArrow}>›</Text>
                   </Pressable>
                 ) : null}
