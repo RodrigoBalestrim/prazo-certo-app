@@ -1523,11 +1523,11 @@ export default function HomeScreen() {
             {company ? (
               <>
                 <View style={styles.profileMenuCompany}>
-                  <Text style={styles.profileMenuLabel}>GRUPO DE LISTA</Text>
+                  <Text style={styles.profileMenuLabel}>GRUPO ATUAL</Text>
                   {company.logoUrl ? (
                     <Image source={{ uri: company.logoUrl }} style={styles.profileCompanyLogo} />
                   ) : null}
-                  <Text style={styles.profileMenuCompanyName}>{company.name}</Text>
+                  <Text style={[styles.profileMenuCompanyName, styles.profileMenuCompanyNameActive]}>{company.name}</Text>
                   <Text style={styles.profileMenuCode}>Código para entrar: {company.inviteCode}</Text>
                 </View>
                 {company.role === "owner" || company.role === "admin" ? (
@@ -2436,6 +2436,7 @@ const styles = StyleSheet.create({
   profileMenuPersonal: { backgroundColor: "#E8F2EC", borderRadius: 16, padding: 16, marginTop: 22 },
   profileMenuLabel: { color: "#6C7C73", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   profileMenuCompanyName: { color: "#174D3B", fontSize: 17, fontWeight: "800", marginTop: 7 },
+  profileMenuCompanyNameActive: { fontSize: 18, color: "#1E7A55" },
   profileMenuCode: { color: "#567066", fontSize: 12, marginTop: 5 },
   profileMenuManage: { marginTop: 12, minHeight: 52, borderRadius: 14, backgroundColor: "#E5AC4F", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileMenuManageText: { color: "#173D31", fontSize: 14, fontWeight: "900" },
