@@ -637,11 +637,11 @@ export default function HomeScreen() {
     if (existing) {
       showAlert(
         "Produto já cadastrado",
-        `${existing.name} já está na sua lista com validade ${formatBrazilianDate(existing.expiresAt)}. Adicionar outra validade?`,
+        `${existing.name} já está na sua lista com validade ${formatBrazilianDate(existing.expiresAt)}. Deseja registrar outro item igual?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
-            text: "Adicionar nova validade",
+            text: "Adicionar outro",
             onPress: () => {
               openAddFlow().catch(() => undefined);
             },
@@ -911,20 +911,7 @@ export default function HomeScreen() {
     }
 
     const expiresAt = dateToIso(parsedDate);
-    // Mesmo código com validade diferente é permitido (ex.: dois pacotes).
-    if (!editingId && barcode.trim()) {
-      const dupeSameDate = products.some(
-        (item) =>
-          !item.archived &&
-          item.expiresAt === expiresAt &&
-          (normalizeBarcode(item.barcode) ?? item.barcode) === barcode.trim(),
-      );
-      if (dupeSameDate) {
-        showAlert("Validade já cadastrada", "Já existe um produto com esse código e essa validade.");
-        return;
-      }
-    }
-
+  
     const existing = editingId
       ? products.find((item) => item.id === editingId)
       : undefined;
