@@ -9,7 +9,7 @@
 </style></head>
 <body><div id="app"><main class="login-wrap"><section class="login"><h1>Prazo Certo</h1><p>Carregando...</p></section></main></div>
 <script>
-const URL="https://lranrivzxemkwybtnvww.supabase.co",KEY="sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP",db=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});let session=null,company=null,products=[],editing=null;
+const SUPABASE_URL="https://lranrivzxemkwybtnvww.supabase.co",SUPABASE_KEY="sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP",db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});let session=null,company=null,products=[],editing=null;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateBR=s=>new Intl.DateTimeFormat('pt-BR',{timeZone:'UTC'}).format(new Date(s+'T12:00:00Z'));
 const days=s=>Math.ceil((new Date(s+'T00:00:00')-new Date(new Date().setHours(0,0,0,0)))/86400000);
@@ -23,6 +23,7 @@ function openEdit(p){editing=p;document.body.insertAdjacentHTML('beforeend',`<di
 async function saveEdit(){let patch={name:document.getElementById('fName').value.trim(),category:document.getElementById('fCat').value,expires_at:document.getElementById('fDate').value,quantity:Number(document.getElementById('fQty').value),barcode:document.getElementById('fBar').value.trim()};if(!patch.name||!patch.expires_at||patch.quantity<1)return;document.getElementById('save').disabled=true;let r=await db.from('products').update(patch).eq('id',editing.id);if(r.error){alert(r.error.message);document.getElementById('save').disabled=false;return}modal.remove();await load()}
 let bootDone=false;function bootFallback(){if(!bootDone){bootDone=true;login()}};setTimeout(bootFallback,10000);if(!window.supabase){bootFallback()}else{db.auth.getSession().then(({data,error})=>{bootDone=true;if(error){login();return}session=data.session;session?load().catch(()=>login()):login()}).catch(bootFallback);db.auth.onAuthStateChange((_e,s)=>{session=s;if(s)load().catch(()=>login())})}
 </script></body></html>
+
 
 
 
