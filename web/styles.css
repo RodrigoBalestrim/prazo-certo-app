@@ -55,7 +55,8 @@ body{margin:0;background:var(--cream);color:var(--ink);font:15px Inter,system-ui
 .group-head h2{margin:0;font-size:20px;letter-spacing:-.2px;font-weight:700}
 .tag{background:#e5f3eb;color:#18714f;padding:5px 10px;border-radius:6px;font-weight:700;font-size:11px}
 .cards{display:block}
-.card{display:grid;grid-template-columns:60px 1fr;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .1s}
+.card{position:relative;display:grid;grid-template-columns:60px minmax(0,1fr);gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .1s}
+.select-check{position:absolute;top:12px;left:12px;z-index:1;width:20px;height:20px;margin:0;accent-color:var(--green2);cursor:pointer}
 .card:hover{border-color:#a9cdb9;box-shadow:0 8px 24px #164d3b18;transform:translateY(-2px)}
 .card:has(.status.green){border-left:4px solid #30a86f}
 .card:has(.status.orange){border-left:4px solid #e1a62f}
