@@ -70,3 +70,14 @@ body{background:var(--cream);font-size:15px}
   .group-identity h1{font-size:24px}
   .group-identity .group-logo{width:26px;height:26px}
 }
+/* Container final alinhado */
+.topbar{width:90%;max-width:none;margin:0 auto;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px}
+.group-identity{justify-self:end}
+.main{width:90%;max-width:none;margin:-22px auto 46px;padding:0}
+.stats{width:100%;max-width:none;margin:0}
+.toolbar,.group{width:100%}
+@media(max-width:800px){
+  .topbar,.main{width:auto;margin-left:18px;margin-right:18px}
+  .topbar{display:flex}
+  .main{margin-top:-18px;margin-bottom:36px}
+}
