@@ -33,7 +33,7 @@ export const MANAGED_ROLES: CompanyRole[] = ["admin", "manager", "stockist", "vi
 
 // Permissões por nível (item 10 do plano de melhorias)
 export function canManageCompany(role: CompanyRole | undefined): boolean {
-  return role === "owner" || role === "admin";
+  return role === "owner" || role === "admin" || role === "manager";
 }
 
 export function canAddProducts(role: CompanyRole | undefined): boolean {
@@ -45,7 +45,7 @@ export function canEditProducts(role: CompanyRole | undefined): boolean {
 }
 
 export function canDeleteProducts(role: CompanyRole | undefined): boolean {
-  return !role || role === "owner" || role === "admin";
+  return !role || role === "owner" || role === "admin" || role === "manager";
 }
 
 export async function loadMyCompany(): Promise<CompanyMembership | null> {
