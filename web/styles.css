@@ -81,3 +81,9 @@ body{background:var(--cream);font-size:15px}
   .topbar{display:flex}
   .main{margin-top:-18px;margin-bottom:36px}
 }
+
+/* Grupo: texto antes, logo à direita */
+.group-identity{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:8px}
+.group-identity>div{order:1;text-align:left}
+.group-identity .group-logo{order:2;width:30px;height:30px;padding:3px}
+@media(max-width:800px){.group-identity{justify-content:flex-start}.group-identity .group-logo{width:26px;height:26px}}
