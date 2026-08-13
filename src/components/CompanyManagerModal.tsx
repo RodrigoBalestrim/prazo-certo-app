@@ -50,7 +50,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
   const [togglingActiveFor, setTogglingActiveFor] = useState<string | null>(null);
   const [logoBusy, setLogoBusy] = useState(false);
 
-  const canManage = company.role === "owner" || company.role === "admin";
+  const canManage = company.role === "owner" || company.role === "admin" || company.role === "manager";
 
   async function refresh() {
     setLoading(true);
@@ -323,7 +323,7 @@ export function CompanyManagerModal({ visible, company, currentUserId, onClose, 
                     </View>
                   ) : null}
                 </View>
-                {item.userId !== currentUserId && item.role !== "owner" ? (
+                {canManage && item.userId !== currentUserId && item.role !== "owner" ? (
                   <Pressable style={styles.removeButton} onPress={() => confirmRemove(item)}>
                     <Text style={styles.removeText}>Remover</Text>
                   </Pressable>
