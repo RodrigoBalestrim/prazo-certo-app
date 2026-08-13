@@ -2115,9 +2115,13 @@ export default function HomeScreen() {
                     <Text style={styles.expiredRemovalNotice}>⚠ Remover da seção</Text>
                   )}
                   {item.rebaixaAprovada ? (
-                    <Text style={styles.rebaixaApprovedText}>
-                      ✓ Rebaixa aprovada{item.rebaixaData ? ` • ${formatBrazilianDate(item.rebaixaData.slice(0, 10))}` : ""}
-                    </Text>
+                    <View style={styles.rebaixaApprovedBadge}>
+                      <Text style={styles.rebaixaApprovedCheck}>✓</Text>
+                      <Text style={styles.rebaixaApprovedLabel}>REBAIXA APROVADA</Text>
+                      {item.rebaixaData ? (
+                        <Text style={styles.rebaixaApprovedDate}>{formatBrazilianDate(item.rebaixaData.slice(0, 10))}</Text>
+                      ) : null}
+                    </View>
                   ) : hasExpiryAlert ? (
                     <Text style={styles.markdownNotice}>⚠ Pedir rebaixa</Text>
                   ) : null}
@@ -2561,7 +2565,10 @@ const styles = StyleSheet.create({
   badge: { fontSize: 11, fontWeight: "800", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
   expiry: { color: "#59665F", fontSize: 13, marginTop: 8 },
   expiredRemovalNotice: { color: "#000000", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaApprovedText: { color: "#1E7A55", fontSize: 11, fontWeight: "800", marginTop: 5 },
+  rebaixaApprovedBadge: { flexDirection: "row", alignSelf: "flex-start", alignItems: "center", gap: 6, marginTop: 8, paddingVertical: 5, paddingLeft: 6, paddingRight: 9, borderWidth: 1, borderColor: "#A8D6BC", borderRadius: 999, backgroundColor: "#E8F7EE" },
+  rebaixaApprovedCheck: { width: 18, height: 18, overflow: "hidden", borderRadius: 9, backgroundColor: "#27835D", color: "#FFF", fontSize: 12, fontWeight: "900", lineHeight: 18, textAlign: "center" },
+  rebaixaApprovedLabel: { color: "#176C49", fontSize: 10, fontWeight: "900", letterSpacing: 0.35 },
+  rebaixaApprovedDate: { borderLeftWidth: 1, borderLeftColor: "#B9DDC8", paddingLeft: 6, color: "#36745A", fontSize: 10, fontWeight: "800" },
     markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
   rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
   rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
