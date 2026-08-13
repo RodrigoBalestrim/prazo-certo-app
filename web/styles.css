@@ -55,6 +55,18 @@ body{background:var(--cream);font-size:15px}
 @media(max-width:800px){.topbar{display:flex;flex-wrap:wrap;align-items:center}.group-identity{order:3;width:100%;justify-self:auto;margin-top:16px}.group-identity h1{font-size:24px}}
 
 @media(min-width:801px){.main{margin-left:0;margin-right:auto;padding-left:24px}.stats{margin-left:0}}
+`n@media(max-width:800px){.group-identity{justify-content:flex-start}.group-identity>div{text-align:left}.group-identity .group-logo{width:26px;height:26px}}
 
-.group-identity{flex-direction:row-reverse;justify-content:flex-end;gap:8px}.group-identity .group-logo{width:30px;height:30px;padding:3px;border-radius:8px}.group-identity h1{font-size:26px}.group-identity>div{text-align:right}
-@media(max-width:800px){.group-identity{justify-content:flex-start}.group-identity>div{text-align:left}.group-identity .group-logo{width:26px;height:26px}}
+/* Cabeçalho do grupo: nome à esquerda, logo pequena à direita */
+.topbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px}
+.group-identity{display:flex;align-items:center;justify-self:end;gap:8px;min-width:0}
+.group-identity>div{text-align:left;min-width:0}
+.group-identity h1{margin:0 0 3px;font-size:26px;line-height:1.1;white-space:nowrap}
+.group-identity p{margin:0;color:#d6e9df;font-size:13px}
+.group-identity .group-logo{order:2;width:30px;height:30px;padding:3px;border-radius:8px;flex:none}
+@media(max-width:800px){
+  .topbar{display:flex;flex-wrap:wrap;gap:14px}
+  .group-identity{order:3;width:100%;justify-self:auto}
+  .group-identity h1{font-size:24px}
+  .group-identity .group-logo{width:26px;height:26px}
+}
