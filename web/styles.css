@@ -55,3 +55,6 @@ body{background:var(--cream);font-size:15px}
 @media(max-width:800px){.topbar{display:flex;flex-wrap:wrap;align-items:center}.group-identity{order:3;width:100%;justify-self:auto;margin-top:16px}.group-identity h1{font-size:24px}}
 
 @media(min-width:801px){.main{margin-left:0;margin-right:auto;padding-left:24px}.stats{margin-left:0}}
+
+.group-identity{flex-direction:row-reverse;justify-content:flex-end;gap:8px}.group-identity .group-logo{width:30px;height:30px;padding:3px;border-radius:8px}.group-identity h1{font-size:26px}.group-identity>div{text-align:right}
+@media(max-width:800px){.group-identity{justify-content:flex-start}.group-identity>div{text-align:left}.group-identity .group-logo{width:26px;height:26px}}
