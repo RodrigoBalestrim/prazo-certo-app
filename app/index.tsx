@@ -1017,17 +1017,6 @@ export default function HomeScreen() {
     setActionProduct(product);
   }
 
-  async function toggleRebaixa(product: Product) {
-    const approved = !product.rebaixaAprovada;
-    const updated = {
-      ...product,
-      rebaixaAprovada: approved,
-      rebaixaData: approved ? new Date().toISOString() : undefined,
-    };
-    await persist(products.map((item) => item.id === product.id ? updated : item));
-    setActionProduct(null);
-  }
-
   async function removeProduct(product: Product) {
     await cancelNotifications(product.notificationIds);
 
@@ -2238,16 +2227,7 @@ export default function HomeScreen() {
                     <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
                   </Pressable>
                 ) : null}
-                {rolePermissions.canAdd ? (
-                <Pressable style={[styles.rebaixaActionButton, actionProduct.rebaixaAprovada && styles.rebaixaApproved]} onPress={() => toggleRebaixa(actionProduct)}>
-                  <View style={styles.actionButtonIcon}><Text style={[styles.editActionIcon, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "✓" : "🏷"}</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.editActionTitle, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>{actionProduct.rebaixaAprovada ? "Rebaixa aprovada" : "Marcar rebaixa aprovada"}</Text>
-                    <Text style={styles.editActionDescription}>{actionProduct.rebaixaAprovada ? "Toque para desmarcar" : "Registrar que a rebaixa foi aprovada"}</Text>
-                  </View>
-                  <Text style={[styles.editActionArrow, actionProduct.rebaixaAprovada && { color: "#1E7A55" }]}>›</Text>
-                </Pressable>
-                ) : null}
+                
 
                 {rolePermissions.canDelete ? (
                 <Pressable style={styles.removeActionButton} onPress={() => removeProduct(actionProduct)}>
@@ -2570,8 +2550,6 @@ const styles = StyleSheet.create({
   rebaixaApprovedLabel: { color: "#176C49", fontSize: 10, fontWeight: "900", letterSpacing: 0.35 },
   rebaixaApprovedDate: { borderLeftWidth: 1, borderLeftColor: "#B9DDC8", paddingLeft: 6, color: "#36745A", fontSize: 10, fontWeight: "800" },
     markdownNotice: { color: "#A15C08", fontSize: 11, fontWeight: "800", marginTop: 5 },
-  rebaixaActionButton: { minHeight: 76, backgroundColor: "#FBF3E2", borderWidth: 1, borderColor: "#EBD9A8", borderRadius: 17, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 10 },
-  rebaixaApproved: { backgroundColor: "#E8F5EE", borderWidth: 1, borderColor: "#8ECFA9" },
   cardMeta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7, marginTop: 7 },
   categoryBadge: { color: "#1E7A55", backgroundColor: "#E5F2EB", fontSize: 10, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7 },
   cardEditButton: { position: "absolute", right: 10, top: "50%", marginTop: -21, width: 42, height: 42, borderRadius: 21, backgroundColor: "#EAF3EE", alignItems: "center", justifyContent: "center", zIndex: 2 },
