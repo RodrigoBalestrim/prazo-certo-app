@@ -55,16 +55,16 @@ body{margin:0;background:var(--cream);color:var(--ink);font:15px Inter,system-ui
 .group-head h2{margin:0;font-size:20px;letter-spacing:-.2px;font-weight:700}
 .tag{background:#e5f3eb;color:#18714f;padding:5px 10px;border-radius:6px;font-weight:700;font-size:11px}
 .cards{display:block}
-.card{display:grid;grid-template-columns:78px 1fr;gap:14px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .1s}
+.card{display:grid;grid-template-columns:60px 1fr;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s,transform .1s}
 .card:hover{border-color:#a9cdb9;box-shadow:0 8px 24px #164d3b18;transform:translateY(-2px)}
 .card:has(.status.green){border-left:4px solid #30a86f}
 .card:has(.status.orange){border-left:4px solid #e1a62f}
 .card:has(.status.red){border-left:4px solid #d86455}
-.card img,.placeholder{width:78px;height:78px;border-radius:10px;object-fit:cover;background:#eef5f0;flex-shrink:0}
-.placeholder{display:grid;place-items:center;color:#8da99a;font-size:26px}
-.card h3{margin:0 0 4px;font-size:17px;color:#12392c;font-weight:700;padding-right:44px}
-.meta{margin:3px 0;font-size:13px;color:var(--muted)}
-.status{margin-top:6px;font-size:13px;font-weight:700}
+.card img,.placeholder{width:60px;height:60px;border-radius:9px;object-fit:cover;background:#eef5f0;flex-shrink:0}
+.placeholder{display:grid;place-items:center;color:#8da99a;font-size:22px}
+.card h3{margin:0 0 2px;font-size:16px;line-height:20px;color:#12392c;font-weight:700;padding-right:42px}
+.meta{margin:2px 0;font-size:12px;line-height:16px;color:var(--muted)}
+.status{margin-top:3px;font-size:12px;line-height:16px;font-weight:700}
 .status.green{color:#238a63}
 .status.orange{color:#c58a19}
 .status.red{color:#c65b4c}
@@ -82,10 +82,10 @@ body{margin:0;background:var(--cream);color:var(--ink);font:15px Inter,system-ui
   .toolbar .select{flex:1}
   .toolbar .btn{flex:1}
   .group{padding:14px}
-  .card{grid-template-columns:64px 1fr;padding:12px;gap:10px}
-  .card img,.placeholder{width:64px;height:64px}
-  .card h3{font-size:15px}
-  .edit{width:34px;height:34px;top:10px;right:10px;font-size:17px}
+  .card{grid-template-columns:56px 1fr;padding:10px;gap:9px}
+  .card img,.placeholder{width:56px;height:56px}
+  .card h3{font-size:15px;line-height:19px}
+  .edit{width:34px;height:34px;top:8px;right:8px;font-size:17px}
 }
 @media(min-width:801px) and (max-height:700px){
   .top{padding-top:16px;padding-bottom:30px}
