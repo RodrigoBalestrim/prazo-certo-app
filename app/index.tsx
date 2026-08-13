@@ -917,7 +917,7 @@ export default function HomeScreen() {
     }
 
     const expiresAt = dateToIso(parsedDate);
-  
+
     const existing = editingId
       ? products.find((item) => item.id === editingId)
       : undefined;
@@ -2227,7 +2227,7 @@ export default function HomeScreen() {
                     <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
                   </Pressable>
                 ) : null}
-                
+
 
                 {rolePermissions.canDelete ? (
                 <Pressable style={styles.removeActionButton} onPress={() => removeProduct(actionProduct)}>
