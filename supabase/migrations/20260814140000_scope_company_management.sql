@@ -1,3 +1,5 @@
+-- Garante que gestão de membros e empresa use o mesmo grupo do solicitante.
+
 -- Evita que cargo de um grupo autorize ação em outro grupo.
 alter table public.products enable row level security;
 alter table public.organizations enable row level security;

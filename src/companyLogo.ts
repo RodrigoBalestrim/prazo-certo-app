@@ -1,3 +1,4 @@
+/** Normaliza e persiste logos de grupos no armazenamento remoto. */
 import { supabase } from "./supabase";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);

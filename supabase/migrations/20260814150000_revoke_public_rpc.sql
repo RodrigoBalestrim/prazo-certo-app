@@ -1,3 +1,5 @@
+-- Reduz execução pública de RPCs e mantém somente concessões necessárias.
+
 -- SECURITY DEFINER nunca deve ficar executável por PUBLIC/anon.
 revoke all on function public.can_add_products() from public;
 revoke all on function public.can_add_products(uuid) from public;

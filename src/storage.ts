@@ -4,6 +4,7 @@ import { Product } from "./types";
 const STORAGE_KEY = "@prazo-certo/products";
 
 export async function loadProducts(userId?: string): Promise<Product[]> {
+  // Chave por usuário impede que o cache de uma sessão apareça em outra.
   const raw = await AsyncStorage.getItem(userId ? `${STORAGE_KEY}/${userId}` : STORAGE_KEY);
   if (!raw) return [];
   try {
@@ -19,7 +20,7 @@ export async function saveProducts(products: Product[], userId?: string): Promis
 
 const PENDING_KEY_PREFIX = "@prazo-certo/pending-sync/";
 
-// Marca que existem dados locais aguardando sincronização online.
+// Marca alterações locais pendentes. A sincronização tenta reenviar ao app voltar ao primeiro plano.
 export async function markSyncPending(scopeKey: string): Promise<void> {
   await AsyncStorage.setItem(`${PENDING_KEY_PREFIX}${scopeKey}`, "1");
 }

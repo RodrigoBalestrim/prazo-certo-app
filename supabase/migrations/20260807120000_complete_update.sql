@@ -1,3 +1,5 @@
+-- Completa estrutura de grupos, configurações e sincronização de produtos.
+
 -- Prazo Certo: Atualização completa
 -- Campos faltantes do app + logo da empresa + usuário ativo.
 -- Execute no SQL Editor (após as migrações anteriores) ou via supabase db push.

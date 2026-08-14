@@ -1,3 +1,4 @@
+/** Consulta e atualização do catálogo compartilhado de produtos. */
 import { supabase } from "./supabase";
 import { ProductCategory } from "./types";
 

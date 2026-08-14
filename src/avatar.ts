@@ -1,3 +1,4 @@
+/** Upload e atualização do avatar do usuário no armazenamento privado. */
 import { supabase } from "./supabase";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);

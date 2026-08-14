@@ -1,3 +1,5 @@
+-- Aplica reforços de RLS, permissões e validações de dados.
+
 -- Prazo Certo: correções de segurança (aplicar no SQL Editor do Supabase)
 -- 1) Catálogo: só o criador pode completar a imagem
 -- 2) Buckets: usuários podem apagar apenas as próprias imagens

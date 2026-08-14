@@ -1,3 +1,4 @@
+/** Marca visual reutilizável do Prazo Certo. */
 import Svg, { Circle, Path } from "react-native-svg";
 
 type LogoMarkProps = {

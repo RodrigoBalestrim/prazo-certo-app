@@ -1,3 +1,5 @@
+-- Mantém infraestrutura de automação disponível para reduzir inicialização fria.
+
 -- Mantém a API de remoção de fundo (Render free) sempre acordada.
 -- Requer pg_cron habilitado em Database → Extensions no dashboard do Supabase.
 -- O Render free dorme após ~15 min sem tráfego; este ping a cada 10 min

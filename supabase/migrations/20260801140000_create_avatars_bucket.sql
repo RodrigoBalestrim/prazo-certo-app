@@ -1,3 +1,5 @@
+-- Cria armazenamento e regras de acesso para avatares de usuários.
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'avatars',

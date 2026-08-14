@@ -1,3 +1,5 @@
+-- Cria catálogo compartilhado e protege alterações entre organizações.
+
 create table if not exists public.product_catalog (
   barcode text primary key,
   name text not null check (char_length(name) between 2 and 160),

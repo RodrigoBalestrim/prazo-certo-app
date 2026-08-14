@@ -1,3 +1,5 @@
+-- Permite saída voluntária de grupo sem remover o proprietário.
+
 -- Permite membro sair de um grupo sem poder remover o proprietário.
 create or replace function public.leave_company(p_organization_id uuid)
 returns void

@@ -1,3 +1,5 @@
+-- Restringe modificações do catálogo compartilhado a usuários autorizados.
+
 create or replace function public.protect_product_catalog_update()
 returns trigger
 language plpgsql

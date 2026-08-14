@@ -1,3 +1,4 @@
+/** Tela de grupo: mostra membros, permissões e ações administrativas. */
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
