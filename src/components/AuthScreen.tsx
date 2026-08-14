@@ -25,6 +25,17 @@ import { uploadAvatar } from "../avatar";
 import { AppAlert, AlertButton, AlertMessage } from "./AppAlert";
 
 WebBrowser.maybeCompleteAuthSession();
+const COMMON_PASSWORDS = new Set(["12345678", "123456789", "senha123", "password", "qwerty123", "admin123"]);
+
+function passwordIssue(password: string, email: string, name: string): string | null {
+  const normalized = password.trim().toLowerCase();
+  const emailName = email.trim().toLowerCase().split("@")[0];
+  const firstName = name.trim().toLowerCase().split(/\s+/)[0];
+  if (password.length < 8) return "Use pelo menos 8 caracteres.";
+  if (COMMON_PASSWORDS.has(normalized)) return "Escolha uma senha menos comum.";
+  if ((emailName.length >= 3 && normalized.includes(emailName)) || (firstName.length >= 3 && normalized.includes(firstName))) return "Não use seu nome ou e-mail na senha.";
+  return null;
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -155,10 +166,16 @@ export function AuthScreen({ onDemo }: Props) {
     if (creatingAccount && fullName.trim().length < 3) {
       showAlert("Informe seu nome", "Digite seu nome completo para criar a conta.");
       return;
-    }
-    if (!email.trim() || password.length < 6) {
-      showAlert("Confira os dados", "Informe um e-mail válido e uma senha com pelo menos 6 caracteres.");
+    }    if (!email.trim() || !password) {
+      showAlert("Confira os dados", "Informe e-mail e senha.");
       return;
+    }
+    if (creatingAccount) {
+      const issue = passwordIssue(password, email, fullName);
+      if (issue) {
+        showAlert("Senha insegura", issue);
+        return;
+      }
     }
     if (creatingAccount && password !== passwordConfirmation) {
       showAlert("Senhas diferentes", "A confirmação deve ser igual à senha informada.");
@@ -333,7 +350,7 @@ export function AuthScreen({ onDemo }: Props) {
           <TextInput
             autoCapitalize="none"
             autoComplete={creatingAccount ? "new-password" : "current-password"}
-            placeholder="Mínimo de 6 caracteres"
+            placeholder="Mínimo de 8 caracteres"
             secureTextEntry
             style={styles.input}
             value={password}
