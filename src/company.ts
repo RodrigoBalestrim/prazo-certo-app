@@ -150,6 +150,10 @@ export async function loadCompanyMembers(): Promise<CompanyMember[]> {
   }));
 }
 
+export async function leaveCompany(companyId: string): Promise<void> {
+  const { error } = await supabase.rpc("leave_company", { p_organization_id: companyId });
+  if (error) throw error;
+}
 export async function removeCompanyMember(userId: string): Promise<void> {
   const { error } = await supabase.rpc("remove_company_member", {
     member_user_id: userId,

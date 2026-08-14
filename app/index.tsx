@@ -35,7 +35,7 @@ import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
 import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
-import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, loadMyCompanies, loadMyCompany } from "@/company";
+import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, leaveCompany, loadMyCompanies, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { normalizeBarcode } from "@/barcode";
 import { compressImageForUpload } from "@/imageUtils";
@@ -1449,7 +1449,7 @@ export default function HomeScreen() {
                 <Image source={{ uri: company.logoUrl }} style={styles.companyLogo} />
               ) : null}
               <Text style={styles.companyLine} numberOfLines={1}>
-                {company ? `${company.name}  •  Código: ${company.inviteCode}` : "Minha lista pessoal"}
+                {company ? `${company!.name}  •  Código: ${company.inviteCode}` : "Minha lista pessoal"}
               </Text>
             </View>
           </View>
@@ -1563,6 +1563,30 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuJoinText}>Usar lista pessoal</Text>
                   <Text style={styles.profileMenuManageArrow}>›</Text>
                 </Pressable>
+                {company?.role !== "owner" ? (
+                  <Pressable
+                    style={styles.profileMenuExitGroup}
+                    onPress={() => showAlert("Sair do grupo", `Deseja sair de ${company!.name}?`, [
+                      { text: "Cancelar", style: "cancel" },
+                      {
+                        text: "Sair",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            await leaveCompany(company!.id);
+                            setProfileMenuOpen(false);
+                            setCompany(null);
+                            lastCompanyRef.current = null;
+                          } catch (error) {
+                            showAlert("Não foi possível sair", error instanceof Error ? error.message : "Tente novamente.");
+                          }
+                        },
+                      },
+                    ])}
+                  >
+                    <Text style={styles.profileMenuExitGroupText}>Sair deste grupo</Text>
+                  </Pressable>
+                ) : null}
               </>
             ) : (
               <>
@@ -2429,6 +2453,8 @@ const styles = StyleSheet.create({
   profileMenuCreateText: { color: "#FFFFFF" },
   profileMenuJoin: { marginTop: 10, minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: "#B8CDC2", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   profileMenuJoinText: { flex: 1, color: "#173D31", fontSize: 13, fontWeight: "900" },
+  profileMenuExitGroup: { minHeight: 44, marginTop: 10, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#F8E5E2" },
+  profileMenuExitGroupText: { color: "#AC3B31", fontSize: 13, fontWeight: "800" },
   profileMenuOptions: { marginTop: 18, borderTopWidth: 1, borderBottomWidth: 1, borderColor: "#DDE5DF" },
   profileMenuOption: { minHeight: 48, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#E5EBE7" },
   profileMenuOptionLast: { borderBottomWidth: 0 },
