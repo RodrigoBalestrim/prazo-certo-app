@@ -93,53 +93,45 @@ function isSafeExternalUrl(raw: string): boolean {
   }
 }
 
+const APPROVED_IMAGE_HOSTS = new Set([
+  "images.openfoodfacts.org",
+  "images.openfoodfacts.net",
+  "lranrivzxemkwybtnvww.supabase.co",
+]);
+
+function imageMimeFromBytes(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes.slice(0, 8).every((value, index) => value === [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a][index])) return "image/png";
+  if (bytes.length >= 12 && new TextDecoder().decode(bytes.slice(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP") return "image/webp";
+  return null;
+}
+
+function isApprovedImageUrl(raw: string): boolean {
+  if (!isSafeExternalUrl(raw)) return false;
+  try { return APPROVED_IMAGE_HOSTS.has(new URL(raw).hostname.toLowerCase()); } catch { return false; }
+}
 async function resolveImage(body: {
   imageBase64?: string;
   imageUrl?: string;
 }): Promise<ImageSource | null> {
+  let bytes: Uint8Array;
   if (body.imageBase64) {
     if (body.imageBase64.length > MAX_INPUT_BASE64) return null;
     const raw = body.imageBase64.trim();
-    const comma = raw.indexOf(",");
-    if (comma >= 0 && raw.slice(0, comma).includes("base64")) {
-      const mime =
-        raw.slice(5, raw.indexOf(";")).trim() || "image/jpeg";
-      const bytes = Uint8Array.from(atob(raw.slice(comma + 1)), (c) =>
-        c.charCodeAt(0)
-      );
-      return { bytes, mime };
-    }
-    const bytes = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
-    return { bytes, mime: "image/jpeg" };
-  }
-
-  if (body.imageUrl) {
-    if (!isSafeExternalUrl(body.imageUrl)) return null;
-    const response = await fetch(body.imageUrl);
+    const payload = raw.includes(",") ? raw.slice(raw.indexOf(",") + 1) : raw;
+    bytes = Uint8Array.from(atob(payload), (char) => char.charCodeAt(0));
+  } else if (body.imageUrl) {
+    if (!isApprovedImageUrl(body.imageUrl)) return null;
+    const response = await fetch(body.imageUrl, { redirect: "error" });
     if (!response.ok) return null;
-    const reader = response.body?.getReader();
-    if (!reader) return null;
-    const chunks: Uint8Array[] = [];
-    let received = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.length;
-      if (received > MAX_FETCH_BYTES) return null;
-      chunks.push(value);
-    }
-    const buffer = new Uint8Array(received);
-    let offset = 0;
-    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
-    const mime =
-      response.headers.get("content-type")?.split(";")[0]?.trim() ||
-      "image/jpeg";
-    return { bytes: new Uint8Array(buffer), mime };
-  }
-
-  return null;
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_FETCH_BYTES) return null;
+    bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > MAX_FETCH_BYTES) return null;
+  } else return null;
+  const mime = imageMimeFromBytes(bytes);
+  return mime ? { bytes, mime } : null;
 }
-
 function buildSystemPrompt(): string {
   return [
     "Você é o assistente de estoque do aplicativo Prazo Certo.",
