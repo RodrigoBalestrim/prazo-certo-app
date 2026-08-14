@@ -1519,7 +1519,7 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuCompanyName}>{company.name}</Text>
                   <Text style={styles.profileMenuCode}>Código para entrar: {company.inviteCode}</Text>
                 </View>
-                {company.role === "owner" || company.role === "admin" ? (
+                {company.role === "owner" || company.role === "admin" || company.role === "manager" ? (
                   <Pressable
                     style={styles.profileMenuManage}
                     onPress={() => {
