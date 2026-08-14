@@ -1,3 +1,4 @@
+/** Fluxo de login, cadastro e recuperação de acesso. */
 import { useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { makeRedirectUri } from "expo-auth-session";

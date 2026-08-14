@@ -1,3 +1,4 @@
+/** Tela de histórico: apresenta operações de produto registradas no banco. */
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,

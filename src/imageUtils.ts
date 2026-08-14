@@ -1,3 +1,4 @@
+/** Conversões de imagem usadas antes de upload e análise por IA. */
 import * as ImageManipulator from "expo-image-manipulator";
 
 const MAX_DIMENSION = 1024;

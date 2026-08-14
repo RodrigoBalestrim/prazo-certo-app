@@ -1,3 +1,5 @@
+-- Garante que permissões de produto sejam avaliadas no grupo correto.
+
 -- Restringe permissões de produto ao grupo da própria linha.
 create or replace function public.can_add_products(p_organization_id uuid)
 returns boolean

@@ -1,3 +1,5 @@
+-- Habilita rotina de manutenção para a automação keep-warm.
+
 -- Ativa o keep-warm (ping a cada 10 min) para a API de remoção de fundo.
 select cron.schedule(
   'prazo-certo-keep-warm',

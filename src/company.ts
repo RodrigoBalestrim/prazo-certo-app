@@ -31,7 +31,8 @@ export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
 
 export const MANAGED_ROLES: CompanyRole[] = ["admin", "manager", "stockist", "viewer"];
 
-// Permissões por nível (item 10 do plano de melhorias)
+// Permissões usadas para a interface. O banco aplica a mesma regra via RLS/RPC.
+// Nunca confiar somente nesta camada para autorizar uma operação.
 export function canManageCompany(role: CompanyRole | undefined): boolean {
   return role === "owner" || role === "admin" || role === "manager";
 }
@@ -78,6 +79,7 @@ export async function loadMyCompany(): Promise<CompanyMembership | null> {
   };
 }
 
+// Uma conta pode participar de vários grupos; a tela escolhe o primeiro ativo por padrão.
 export async function loadMyCompanies(): Promise<CompanyMembership[]> {
   const { data, error } = await supabase
     .from("organization_members")

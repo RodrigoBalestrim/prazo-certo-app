@@ -1,3 +1,5 @@
+-- Concede ao gerente as permissões operacionais definidas pelo produto.
+
 -- Gerente com acesso total ao grupo, exceto alterar/remover proprietário.
 create or replace function public.can_manage_company()
 returns boolean

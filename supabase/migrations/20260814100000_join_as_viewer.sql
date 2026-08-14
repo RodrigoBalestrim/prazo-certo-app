@@ -1,3 +1,5 @@
+-- Define entrada por convite com cargo inicial de visualizador.
+
 -- Novo participante entra como visualizador; "member" não é um cargo válido.
 create or replace function public.join_company(company_code text)
 returns uuid

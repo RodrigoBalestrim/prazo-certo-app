@@ -1,3 +1,4 @@
+/** Ícone vetorial reutilizável para ações de código de barras. */
 import Svg, { Rect } from "react-native-svg";
 
 type BarcodeIconProps = {

@@ -1,3 +1,4 @@
+/** Navegação raiz: inicializa rotas Expo e o layout comum do aplicativo. */
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 

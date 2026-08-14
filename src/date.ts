@@ -3,6 +3,7 @@ export function parseBrazilianDate(value: string): Date | null {
   if (!match) return null;
 
   const [, day, month, year] = match.map(Number);
+  // 09:00 evita que fuso horário transforme a data digitada em dia anterior.
   const date = new Date(year, month - 1, day, 9, 0, 0, 0);
   if (
     date.getFullYear() !== year ||
@@ -25,6 +26,7 @@ export function maskBrazilianDate(value: string): string {
 
 export function formatBrazilianDate(isoDate: string): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+    // Meio-dia UTC evita deslocamento de data ao formatar no aparelho.
     new Date(`${isoDate}T12:00:00Z`),
   );
 }
@@ -39,6 +41,7 @@ export function dateToIso(date: Date): string {
 export function daysUntil(isoDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  // Datas de validade não têm hora; comparar à meia-noite mantém o cálculo estável.
   const target = new Date(`${isoDate}T00:00:00`);
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
 }

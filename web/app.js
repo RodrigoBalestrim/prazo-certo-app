@@ -1,3 +1,4 @@
+/** Versão web do Prazo Certo: autenticação, lista, grupos e ações de produto. */
 
 const SUPABASE_URL="https://lranrivzxemkwybtnvww.supabase.co",SUPABASE_KEY="sb_publishable_VhCkk-QIKGwrxGaBRcZrkA_3UhMUpNP",db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});let session=null,company=null,availableCompany=null,availableCompanies=[],products=[],editing=null,selected=new Set(),personalMode=localStorage.getItem("prazo-certo-list-mode")==="personal",activeCompanyId=localStorage.getItem("prazo-certo-active-company");
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

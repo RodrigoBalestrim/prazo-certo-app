@@ -1,3 +1,5 @@
+-- Adiciona recursos de IA, auditoria, histórico de imagens e cargos de grupo.
+
 -- Prazo Certo: Melhorias com IA
 -- Permissões por nível, auditoria, histórico de imagens e campos de IA.
 -- Execute no SQL Editor do Supabase (após os dois schemas atuais).

@@ -1,3 +1,4 @@
+/** Modal de gestão de grupo, participantes e cargos. */
 import { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {

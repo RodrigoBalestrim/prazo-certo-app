@@ -50,6 +50,7 @@ export async function scheduleExpiryNotifications(
 
   const ids: string[] = [];
   const expiry = new Date(`${expiryIso}T09:00:00`);
+  // Açougue e Frios exigem ação 15 dias antes; demais categorias, 30 dias antes.
   const categoryAdvance =
     category === "Açougue" || category === "Frios/PAS"
       ? { days: 15, body: `${productName} vence em 15 dias.` }
@@ -65,6 +66,7 @@ export async function scheduleExpiryNotifications(
   for (const reminder of reminders) {
     const trigger = new Date(expiry);
     trigger.setDate(trigger.getDate() - reminder.days);
+    // Não agenda aviso retroativo ao editar produto já perto do vencimento.
     if (trigger.getTime() <= Date.now()) continue;
     ids.push(
       await Notifications.scheduleNotificationAsync({

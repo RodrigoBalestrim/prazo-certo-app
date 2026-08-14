@@ -1,3 +1,5 @@
+-- Permite que uma conta participe de vários grupos.
+
 -- Permite participação em mais de um grupo de lista.
 -- Remove a restrição unique(user_id) e libera criar/entrar em vários grupos.
 alter table public.organization_members drop constraint if exists organization_members_user_id_key;

@@ -1,3 +1,4 @@
+/** Tipos de domínio compartilhados entre telas, armazenamento e sincronização. */
 export const PRODUCT_CATEGORIES = [
   "Mercearia",
   "Açougue",
