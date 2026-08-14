@@ -1563,8 +1563,7 @@ export default function HomeScreen() {
                   <Text style={styles.profileMenuJoinText}>Usar lista pessoal</Text>
                   <Text style={styles.profileMenuManageArrow}>›</Text>
                 </Pressable>
-                {company?.role !== "owner" ? (
-                  <Pressable
+                <Pressable
                     style={styles.profileMenuExitGroup}
                     onPress={() => showAlert("Sair do grupo", `Deseja sair de ${company!.name}?`, [
                       { text: "Cancelar", style: "cancel" },
@@ -1586,7 +1585,6 @@ export default function HomeScreen() {
                   >
                     <Text style={styles.profileMenuExitGroupText}>Sair deste grupo</Text>
                   </Pressable>
-                ) : null}
               </>
             ) : (
               <>
