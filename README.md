@@ -7,7 +7,7 @@ e ajudar mercados, empresas e usuários domésticos a agir antes do vencimento.
 
 ## Página do projeto
 
-- **Acesse o Prazo Certo:** [prazo-certo-landing.vercel.app](https://rodrigobalestrim.github.io/prazo-certo-app)
+- **Acesse o Prazo Certo:** [rodrigobalestrim.github.io/prazo-certo-app](https://rodrigobalestrim.github.io/prazo-certo-app/)
 - Na tela inicial, selecione **Entrar para testar** para conhecer os recursos sem criar uma conta.
 
 ## Principais recursos
