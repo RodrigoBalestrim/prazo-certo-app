@@ -5,9 +5,9 @@
 Aplicativo mobile criado para controlar a validade de produtos, reduzir perdas
 e ajudar mercados, empresas e usuários domésticos a agir antes do vencimento.
 
-## Demonstração web
+## Página do projeto
 
-- **Acesse o aplicativo:** [prazo-certo.expo.app](https://prazo-certo.expo.app)
+- **Acesse o Prazo Certo:** [prazo-certo-landing.vercel.app](https://prazo-certo-landing.vercel.app)
 - Na tela inicial, selecione **Entrar para testar** para conhecer os recursos sem criar uma conta.
 
 ## Principais recursos
