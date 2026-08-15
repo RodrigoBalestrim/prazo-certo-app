@@ -36,3 +36,4 @@ android/
 # n8n local credentials
 n8n/.env
 n8n/.expiry-alerts-secret
+.vercel
