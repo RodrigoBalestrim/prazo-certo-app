@@ -25,6 +25,7 @@ type ProductRow = {
   packaging_type: string | null;
   category: Product["category"] | null;
   barcode: string;
+  preco_cents: number | null;
   expires_at: string;
   quantity: number;
   notes: string | null;
@@ -47,6 +48,7 @@ function fromRow(row: ProductRow): Product {
     packagingType: row.packaging_type || undefined,
     category: row.category || "Mercearia",
     barcode: row.barcode,
+    precoCents: row.preco_cents ?? undefined,
     expiresAt: row.expires_at,
     quantity: row.quantity,
     notes: row.notes || undefined,
@@ -73,6 +75,7 @@ function toRow(userId: string, organizationId: string | null, product: Product):
     packaging_type: product.packagingType || null,
     category: product.category || "Mercearia",
     barcode: product.barcode,
+    preco_cents: product.precoCents ?? null,
     expires_at: product.expiresAt,
     quantity: product.quantity,
     notes: product.notes || null,
@@ -159,6 +162,27 @@ export async function deleteCloudProducts(
   }
   const { error } = await query;
   if (error) throw error;
+}
+
+/** Resultado agregado do dashboard de perda (valores em centavos). */
+export type PerdaEstimada = {
+  vencidosCentavos: number;
+  vencendoCentavos: number;
+  vencidosItens: number;
+  vencendoItens: number;
+};
+
+/** Busca a perda estimada (vencidos + vencendo) para o escopo atual. */
+export async function carregarPerdaEstimada(dias = 7): Promise<PerdaEstimada> {
+  const { data, error } = await supabase.rpc("perda_estimada", { p_dias: dias });
+  if (error) throw error;
+  const row = (data ?? [])[0] ?? {};
+  return {
+    vencidosCentavos: Number(row.vencidos_centavos ?? 0),
+    vencendoCentavos: Number(row.vencendo_centavos ?? 0),
+    vencidosItens: Number(row.vencidos_itens ?? 0),
+    vencendoItens: Number(row.vencendo_itens ?? 0),
+  };
 }
 
 /**
