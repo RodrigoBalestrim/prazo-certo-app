@@ -53,7 +53,7 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
-import { baixarEstoque, deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, reporEstoque, updateCloudProduct } from "@/cloudStorage";
+import { baixarEstoque, carregarPerdaEstimada, deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, PerdaEstimada, replaceCloudProducts, reporEstoque, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, leaveCompany, loadMyCompanies, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { normalizeBarcode } from "@/barcode";
@@ -96,6 +96,7 @@ export default function HomeScreen() {
   const cutoutRunningRef = useRef<Set<string>>(new Set());
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [price, setPrice] = useState("");
   const [category, setCategory] = useState<ProductCategory>("Mercearia");
   const [notes, setNotes] = useState("");
   const [brand, setBrand] = useState("");
@@ -125,6 +126,8 @@ export default function HomeScreen() {
   const [companySetupMode, setCompanySetupMode] = useState<"create" | "join">("create");
   const [menuScreen, setMenuScreen] = useState<"profile" | "notifications" | "reports" | "help" | null>(null);
   const [alert, setAlert] = useState<AlertMessage | null>(null);
+  const [perda, setPerda] = useState<PerdaEstimada | null>(null);
+  const [perdaLoading, setPerdaLoading] = useState(false);
 
   function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
     setAlert({ title, message, buttons });
@@ -403,6 +406,13 @@ export default function HomeScreen() {
       setProfileNameDraft(profileName);
       setProfilePhotoDraft(profilePhoto);
     }
+    if (screen === "reports") {
+      setPerdaLoading(true);
+      carregarPerdaEstimada(7)
+        .then(setPerda)
+        .catch(() => setPerda(null))
+        .finally(() => setPerdaLoading(false));
+    }
     setMenuScreen(screen);
   }
 
@@ -588,6 +598,7 @@ export default function HomeScreen() {
     setBarcode("");
     setExpiry("");
     setQuantity("1");
+    setPrice("");
     setCategory("Mercearia");
     setNotes("");
     setBrand("");
@@ -954,6 +965,14 @@ export default function HomeScreen() {
       return;
     }
 
+    // preço opcional: "1,99" ou "1.99" → centavos (199)
+    const priceText = price.trim().replace(",", ".");
+    const numericPrice = priceText ? Math.round(parseFloat(priceText) * 100) : null;
+    if (priceText && (!Number.isFinite(numericPrice) || numericPrice! < 0)) {
+      showAlert("Preço inválido", "Informe um valor válido (ex.: 1,99).");
+      return;
+    }
+
     const expiresAt = dateToIso(parsedDate);
 
     const existing = editingId
@@ -999,6 +1018,7 @@ export default function HomeScreen() {
       packagingType: packagingType.trim() || existing?.packagingType || undefined,
       category,
       barcode: barcode.trim(),
+      precoCents: numericPrice ?? undefined,
       expiresAt,
       quantity: numericQuantity,
       notes: notes.trim() || undefined,
@@ -1045,6 +1065,7 @@ export default function HomeScreen() {
     setBarcode(product.barcode);
     setExpiry(formatBrazilianDate(product.expiresAt));
     setQuantity(String(product.quantity));
+    setPrice(product.precoCents != null ? (product.precoCents / 100).toFixed(2).replace(".", ",") : "");
     setCategory(product.category || "Mercearia");
     setNotes(product.notes || "");
     setRebaixaApproved(Boolean(product.rebaixaAprovada));
@@ -1910,6 +1931,35 @@ export default function HomeScreen() {
                   <Text style={styles.menuScreenDescription}>
                     Visão geral da sua lista atual de produtos.
                   </Text>
+                  <View style={styles.perdaCard}>
+                    <Text style={styles.perdaTitle}>💸 Perda estimada</Text>
+                    {perdaLoading ? (
+                      <ActivityIndicator color="#1E7A55" style={{ marginTop: 10 }} />
+                    ) : perda ? (
+                      <>
+                        <View style={styles.perdaRow}>
+                          <Text style={styles.perdaLabel}>Vencidos</Text>
+                          <Text style={styles.perdaValue}>
+                            {perda.vencidosItens > 0
+                              ? `R$ ${(perda.vencidosCentavos / 100).toFixed(2)} (${perda.vencidosItens} item${perda.vencidosItens === 1 ? "" : "s"})`
+                              : "R$ 0,00"}
+                          </Text>
+                        </View>
+                        <View style={styles.perdaRow}>
+                          <Text style={styles.perdaLabel}>Vencendo em 7 dias</Text>
+                          <Text style={[styles.perdaValue, styles.perdaWarn]}>
+                            {perda.vencendoItens > 0
+                              ? `R$ ${(perda.vencendoCentavos / 100).toFixed(2)} (${perda.vencendoItens} item${perda.vencendoItens === 1 ? "" : "s"})`
+                              : "R$ 0,00"}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <Text style={styles.perdaEmpty}>
+                        Cadastre o preço dos produtos para ver a perda em R$.
+                      </Text>
+                    )}
+                  </View>
                   <View style={styles.reportHero}>
                     <Text style={styles.reportHeroNumber}>{products.length}</Text>
                     <Text style={styles.reportHeroLabel}>produtos cadastrados</Text>
@@ -2499,6 +2549,16 @@ export default function HomeScreen() {
                 <Text style={styles.label}>Quantidade</Text>
                 <TextInput style={styles.inputSolo} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
               </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Preço (R$)</Text>
+                <TextInput
+                  style={styles.inputSolo}
+                  value={price}
+                  onChangeText={(value) => setPrice(value.replace(/[^0-9.,]/g, ""))}
+                  keyboardType="decimal-pad"
+                  placeholder="0,00"
+                />
+              </View>
             </View>
 
             {editingId ? (
@@ -2805,4 +2865,11 @@ const styles = StyleSheet.create({
   primary: { height: 53, borderRadius: 15, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginTop: 20 },
   primaryText: { color: "#FFF", fontSize: 15, fontWeight: "900" },
   disabled: { opacity: 0.65 },
+  perdaCard: { backgroundColor: "#FFF", borderWidth: 1, borderColor: "#E2E9E4", borderRadius: 16, padding: 16, marginBottom: 14 },
+  perdaTitle: { color: "#193D31", fontSize: 15, fontWeight: "800", marginBottom: 10 },
+  perdaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#EEF2EF" },
+  perdaLabel: { color: "#5E6C65", fontSize: 13 },
+  perdaValue: { color: "#B13B30", fontSize: 14, fontWeight: "800" },
+  perdaWarn: { color: "#B98A1F" },
+  perdaEmpty: { color: "#7C8982", fontSize: 12, marginTop: 6 },
 });
