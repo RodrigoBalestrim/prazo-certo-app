@@ -1,4 +1,4 @@
-// Teste da regra PEPS (espelha a função SQL baixar_estoque).
+// Teste da regra PEPS (espelha a função SQL baixar_estoque) e reposição.
 // Roda sem banco: valida a lógica de baixa por lote.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -60,4 +60,17 @@ test("lança erro quando estoque insuficiente", () => {
     { id: "A", expires_at: "2026-08-20", received_at: "2026-08-01", quantity: 2 },
   ];
   assert.throws(() => baixarPeps(lotes, 3), /Estoque insuficiente/);
+});
+
+// Reposição: novo lote entra ao final da fila PEPS (não altera o antigo).
+test("reposição cria novo lote que só sai após o existente", () => {
+  const lotes = [
+    { id: "A", expires_at: "2026-08-20", received_at: "2026-08-01", quantity: 2 },
+  ];
+  // simula repor: adiciona lote B com validade posterior
+  lotes.push({ id: "B", expires_at: "2026-09-10", received_at: "2026-08-17", quantity: 5 });
+  const out = baixarPeps(lotes, 2).lotes;
+  // sai primeiro do A (vence antes), B intocado
+  assert.equal(out.find((l) => l.id === "A").quantity, 0);
+  assert.equal(out.find((l) => l.id === "B").quantity, 5);
 });

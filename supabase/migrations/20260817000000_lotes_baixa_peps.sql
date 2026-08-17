@@ -139,7 +139,89 @@ begin
     );
   end loop;
 
+  -- mantém products.quantity espelhando o saldo total válido (para o app
+  -- ler sem join; a fonte real de saldo por lote é lots)
+  update public.products
+  set quantity = coalesce((
+    select sum(l.quantity) from public.lots l
+    where l.product_id = p_product_id
+  ), 0)
+  where id = p_product_id;
+
   return v_baixado;
+end;
+$$;
+
+-- Reposição: adiciona um NOVO lote (ou soma num existente com mesmo
+-- recebimento+validade). NUNCA altera o lote antigo — PEPS depende disso.
+create or replace function public.repor_estoque(
+  p_product_id text,
+  p_quantity integer,
+  p_expires_at date,
+  p_received_at date default (now() at time zone 'America/Sao_Paulo')::date
+)
+returns integer
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_lote_id text;
+begin
+  if p_quantity <= 0 then
+    raise exception 'Quantidade deve ser maior que zero';
+  end if;
+
+  -- valida acesso (mesma regra de leitura do produto)
+  if not exists (
+    select 1 from public.products
+    where products.id = p_product_id
+      and (
+        (products.organization_id is null and products.user_id = auth.uid())
+        or public.is_organization_member(products.organization_id)
+      )
+  ) then
+    raise exception 'Produto não encontrado';
+  end if;
+
+  -- se já existe lote com mesmo recebimento+validade, soma a quantidade
+  select id into v_lote_id
+  from public.lots
+  where product_id = p_product_id
+    and received_at = p_received_at
+    and expires_at = p_expires_at;
+
+  if v_lote_id is not null then
+    update public.lots
+    set quantity = quantity + p_quantity
+    where id = v_lote_id;
+  else
+    insert into public.lots (id, product_id, user_id, organization_id, received_at, expires_at, quantity)
+    values (
+      gen_random_uuid()::text,
+      p_product_id,
+      auth.uid(),
+      (select organization_id from public.products where id = p_product_id),
+      p_received_at,
+      p_expires_at,
+      p_quantity
+    )
+    returning id into v_lote_id;
+  end if;
+
+  -- histórico
+  insert into public.stock_movements (id, lot_id, product_id, user_id, type, quantity)
+  values (gen_random_uuid()::text, v_lote_id, p_product_id, auth.uid(), 'stock_in', p_quantity);
+
+  -- espelha o saldo total no produto
+  update public.products
+  set quantity = coalesce((
+    select sum(l.quantity) from public.lots l
+    where l.product_id = p_product_id
+  ), 0)
+  where id = p_product_id;
+
+  return p_quantity;
 end;
 $$;
 
@@ -210,8 +292,12 @@ create index if not exists lots_product_expiry_idx on public.lots(product_id, ex
 create index if not exists stock_movements_product_idx on public.stock_movements(product_id, created_at desc);
 
 -- 6) Concessões --------------------------------------------------------------
--- A função é security invoker: quem chama precisa de EXECUTE, e internamente
--- lê products/lots e insere em stock_movements conforme as policies acima.
+-- As funções são security invoker: quem chama precisa de EXECUTE, e
+-- internamente leem products/lots e inserem em stock_movements conforme as
+-- policies acima.
 grant execute on function public.baixar_estoque(text, integer, text) to authenticated;
 revoke all on function public.baixar_estoque(text, integer, text) from public;
+
+grant execute on function public.repor_estoque(text, integer, date, date) to authenticated;
+revoke all on function public.repor_estoque(text, integer, date, date) from public;
 
