@@ -1,0 +1,13 @@
+{
+  "name": "prazo-certo-alerts-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.111.0"
+  }
+}
