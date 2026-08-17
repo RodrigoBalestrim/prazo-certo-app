@@ -2,6 +2,18 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { ProductCategory } from "./types";
 
+/**
+ * Notificações locais de validade.
+ *
+ * Avisos são AGENDADOS no aparelho no momento do cadastro (expo-notifications
+ * agenda nativamente, sem servidor). Ao editar/excluir o produto, os avisos
+ * antigos são cancelados pelos ids guardados em Product.notificationIds.
+ *
+ * As preferências do usuário determinam quantos lembretes e com quanto de
+ * antecedência: 30 dias antes por padrão, 15 dias para Açougue/Frios/PAS
+ * (setores de perecível que exigem ação mais cedo).
+ */
+
 export type NotificationPreferences = {
   enabled: boolean;
   advance: boolean;

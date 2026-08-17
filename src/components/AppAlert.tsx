@@ -1,4 +1,10 @@
-/** Alerta reutilizável para mensagens consistentes em mobile e web. */
+/**
+ * Alerta reutilizável (substitui o Alert nativo).
+ *
+ * Um único componente garante a mesma aparência em mobile e web, com suporte
+ * a múltiplos botões (default/cancel/destructive) — usado em todo o app para
+ * mensagens e confirmações.
+ */
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 export type AlertButton = {

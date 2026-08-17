@@ -1,6 +1,20 @@
 import { supabase } from "./supabase";
 import { Product, ProductCategory } from "./types";
 
+/**
+ * Integração com a Edge Function "analyze-product" (Supabase).
+ *
+ * Dois usos:
+ * - Cadastro assistido: foto + código -> nome, marca, categoria, descrição,
+ *   embalagem, e remoção de fundo. Compara também com produtos já cadastrados
+ *   para alertar duplicidade (matches com % de similaridade).
+ * - Remoção de fundo em segundo plano (cutoutOnly), depois que o produto já
+ *   está salvo — o app reprocessa até conseguir (ver app/index.tsx).
+ *
+ * A Edge Function é quem detém as chaves (Gemini/remove.bg); o app envia
+ * apenas base64/URL e recebe o resultado pronto. Histórico de imagens é
+ * best-effort.
+ */
 export type AiProductMatch = {
   name: string;
   similarity: number;

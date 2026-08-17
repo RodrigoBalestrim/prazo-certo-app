@@ -1,4 +1,11 @@
-/** Upload e atualização do avatar do usuário no armazenamento privado. */
+/**
+ * Avatar do usuário.
+ *
+ * Faz upload da foto para o bucket "avatars" (com cache-busting ?v=timestamp)
+ * e grava a URL pública nos metadados da conta. Validações: só JPG/PNG/WEBP,
+ * máx. 5 MB. Data URIs (base64) são decodificadas manualmente — o fetch de
+ * data URI falha em alguns aparelhos Android.
+ */
 import { supabase } from "./supabase";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);

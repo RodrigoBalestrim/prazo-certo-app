@@ -1,4 +1,12 @@
-/** Normaliza e persiste logos de grupos no armazenamento remoto. */
+/**
+ * Logo de grupo.
+ *
+ * Upload para o bucket "company-logos" com cache-busting. Diferença do avatar:
+ * aqui há RETRY (3 tentativas com 2s de espera) no download e no upload —
+ * logo é enviado no fluxo de criação do grupo e falhas transitórias de rede
+ * não devem desistir na primeira tentativa. Data URI é decodificada
+ * manualmente (fetch de data URI falha em alguns Androids).
+ */
 import { supabase } from "./supabase";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
