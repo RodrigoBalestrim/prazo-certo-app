@@ -161,6 +161,38 @@ export async function deleteCloudProducts(
   if (error) throw error;
 }
 
+/**
+ * Baixa de estoque (venda). Chama a RPC baixar_estoque, que respeita PEPS
+ * (primeiro a vencer, primeiro a sair) e bloqueia lote vencido.
+ * Retorna a quantidade efetivamente baixada.
+ */
+export async function baixarEstoque(productId: string, quantity: number): Promise<number> {
+  const { data, error } = await supabase.rpc("baixar_estoque", {
+    p_product_id: productId,
+    p_quantity: quantity,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+/**
+ * Reposição de estoque. Adiciona um NOVO lote (ou soma no existente de mesmo
+ * recebimento+validade) e atualiza o saldo do produto.
+ */
+export async function reporEstoque(
+  productId: string,
+  quantity: number,
+  expiresAt: string, // ISO "YYYY-MM-DD"
+): Promise<number> {
+  const { data, error } = await supabase.rpc("repor_estoque", {
+    p_product_id: productId,
+    p_quantity: quantity,
+    p_expires_at: expiresAt,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 // Atualiza apenas UM produto na nuvem (não substitui a lista inteira).
 // Usado pelo processamento de fundo em segundo plano — evita apagar
 // produtos adicionados/editados enquanto o processo roda.
