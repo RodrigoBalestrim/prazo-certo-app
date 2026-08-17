@@ -300,4 +300,3 @@ revoke all on function public.baixar_estoque(text, integer, text) from public;
 
 grant execute on function public.repor_estoque(text, integer, date, date) to authenticated;
 revoke all on function public.repor_estoque(text, integer, date, date) from public;
-
