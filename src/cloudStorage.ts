@@ -1,3 +1,14 @@
+/**
+ * Camada de persistência em nuvem (Supabase) dos produtos.
+ *
+ * Regras que o resto do app depende de manter:
+ * - A LISTA é fonte de verdade em cada aparelho (AsyncStorage). Este módulo
+ *   apenas espelha ela na nuvem; nunca apaga por diferença contra a lista.
+ * - Toda operação filtra por user_id/group (ou delega à RLS) para nunca
+ *   tocar em dados de outro usuário.
+ * - Operações que podem conflitar com edição em segundo plano usam escrita
+ *   por id (updateCloudProduct), nunca substituição da lista inteira.
+ */
 import { supabase } from "./supabase";
 import { Product } from "./types";
 
@@ -158,13 +169,17 @@ export async function updateCloudProduct(
   organizationId: string | null,
   product: Product,
 ): Promise<void> {
+  // O dono do registro pode divergir do usuário atual em lista compartilhada
+  // (o item foi criado por outro membro do grupo), então não fixamos o
+  // user_id no corpo — a RLS valida a permissão de escrita no banco.
   const row = toRow(userId, organizationId, product);
-    if (organizationId) {
+  if (organizationId) {
     delete (row as { user_id?: string }).user_id;
-    query = query.eq("organization_id", organizationId);
-  } else {
-    query = query.eq("user_id", userId).is("organization_id", null);
   }
+  let query = supabase.from("products").update(row).eq("id", product.id);
+  query = organizationId
+    ? query.eq("organization_id", organizationId)
+    : query.eq("user_id", userId).is("organization_id", null);
   const { error } = await query;
   if (error) throw error;
 }

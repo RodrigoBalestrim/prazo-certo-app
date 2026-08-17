@@ -1,3 +1,12 @@
+/**
+ * Auditoria de operações de produto.
+ *
+ * O app registra ações explícitas (create/update/delete/config) pela RPC
+ * insert_audit_log; o banco também grava automaticamente alterações via
+ * trigger. O histórico alimenta a tela de Histórico e é a trilha de
+ * responsabilidade para listas de grupo (quem mudou o quê e quando).
+ * Auditoria é sempre best-effort: nunca deve bloquear o fluxo do usuário.
+ */
 import { supabase } from "./supabase";
 
 export type AuditAction = "create" | "update" | "delete" | "config_change";

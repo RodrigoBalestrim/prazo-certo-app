@@ -1,3 +1,14 @@
+/**
+ * Grupos de lista compartilhada (empresas/equipes).
+ *
+ * O app suporta dois escopos de produto: LISTA PESSOAL (só do usuário) e
+ * GRUPO (lista compartilhada entre membros da organização). Este módulo
+ * centraliza:
+ * - tipos e papéis (owner/admin/manager/stockist/viewer);
+ * - permissões exibidas na UI;
+ * - todas as operações de grupo via RPC do Supabase (o banco valida a
+ *   autorização novamente, nunca confiar só nesta camada).
+ */
 import { supabase } from "./supabase";
 
 export type CompanyRole = "owner" | "admin" | "manager" | "stockist" | "viewer";

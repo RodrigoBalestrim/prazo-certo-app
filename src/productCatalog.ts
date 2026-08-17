@@ -1,4 +1,19 @@
-/** Consulta e atualização do catálogo compartilhado de produtos. */
+/**
+ * Catálogo compartilhado de produtos por código de barras.
+ *
+ * Funciona como uma "memória coletiva": quando um usuário cadastra um produto
+ * identificado por código, ele pode contribuir nome/foto/categoria para a
+ * tabela product_catalog. A próxima leitura do mesmo código em QUALQUER
+ * aparelho já traz o nome certo sem depender das APIs externas.
+ *
+ * Regras importantes:
+ * - Só insere se o código ainda não existir (conflito 23505 é ignorado —
+ *   dois aparelhos contribuindo o mesmo código ao mesmo tempo).
+ * - Fotos locais (data:/file:/blob:) são enviadas ao Storage antes de gravar
+ *   a URL permanente.
+ * - A atualização de imagem de item existente só preenche quando a imagem
+ *   está vazia, para não sobrescrever a foto já aprovada.
+ */
 import { supabase } from "./supabase";
 import { ProductCategory } from "./types";
 

@@ -1,4 +1,14 @@
-/** Tela de grupo: mostra membros, permissões e ações administrativas. */
+/**
+ * Tela de criação/entrada em grupo.
+ *
+ * Dois modos:
+ * - "create": define nome do grupo, razão social, setor e logo; chama a RPC
+ *   create_company, que gera o código de convite no banco.
+ * - "join": digita o código de convite (uppercase) e chama join_company.
+ *
+ * Após concluir, onReady devolve o grupo criado/entrado para o app trocar de
+ * escopo (lista pessoal -> lista do grupo).
+ */
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {

@@ -1,4 +1,15 @@
-/** Fluxo de login, cadastro e recuperação de acesso. */
+/**
+ * Fluxo de autenticação.
+ *
+ * - Login/cadastro por e-mail+senha (com validação local de senha fraca:
+ *   mínimo 8 chars, fora de listas comuns, sem nome/e-mail embutidos).
+ * - Login Google via OAuth (deep link tratado em app/auth/callback.tsx).
+ * - Recuperação de senha.
+ * - "ENTRAR PARA TESTAR" (web): entra em modo demo sem criar conta — o app
+ *   usa um usuário sintético com dados locais (ver app/index.tsx).
+ * - Timeouts: o plano Free do Supabase hiberna, então chamadas podem demorar;
+ *   sem timeout a tela travaria para sempre.
+ */
 import { useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { makeRedirectUri } from "expo-auth-session";
