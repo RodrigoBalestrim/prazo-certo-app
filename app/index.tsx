@@ -53,7 +53,7 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
-import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
+import { baixarEstoque, deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, reporEstoque, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, leaveCompany, loadMyCompanies, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { normalizeBarcode } from "@/barcode";
@@ -114,6 +114,10 @@ export default function HomeScreen() {
   const [removingSelected, setRemovingSelected] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [actionProduct, setActionProduct] = useState<Product | null>(null);
+  // Modal numérico para baixa/reposição de estoque
+  const [stockAction, setStockAction] = useState<"baixar" | "repor" | null>(null);
+  const [stockQty, setStockQty] = useState("");
+  const [stockBusy, setStockBusy] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [companyManagerOpen, setCompanyManagerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -1056,6 +1060,39 @@ export default function HomeScreen() {
 
     await persist(products.filter((item) => item.id !== product.id));
     setActionProduct(null);
+  }
+
+  // Baixa de estoque (venda): chama a RPC PEPS e atualiza a lista local.
+  async function handleStockAction() {
+    if (!stockAction || !actionProduct || stockBusy) return;
+    const qty = Number(stockQty);
+    if (!Number.isInteger(qty) || qty < 1) {
+      showAlert("Quantidade inválida", "Informe um número inteiro maior que zero.");
+      return;
+    }
+    setStockBusy(true);
+    try {
+      const updated = { ...actionProduct };
+      if (stockAction === "baixar") {
+        const baixado = await baixarEstoque(actionProduct.id, qty);
+        updated.quantity = Math.max(0, actionProduct.quantity - baixado);
+      } else {
+        await reporEstoque(actionProduct.id, qty, actionProduct.expiresAt);
+        updated.quantity = actionProduct.quantity + qty;
+      }
+      // persist atualiza local + nuvem com a nova quantidade
+      await persist(products.map((item) => (item.id === updated.id ? updated : item)));
+      setStockQty("");
+      setStockAction(null);
+      setActionProduct(null);
+    } catch (error) {
+      showAlert(
+        stockAction === "baixar" ? "Não foi possível baixar" : "Não foi possível repor",
+        error instanceof Error ? error.message : "Tente novamente.",
+      );
+    } finally {
+      setStockBusy(false);
+    }
   }
 
   function toggleProductSelection(id: string) {
@@ -2285,6 +2322,30 @@ export default function HomeScreen() {
                   <Text style={styles.editActionArrow}>›</Text>
                 </Pressable>
 
+                {rolePermissions.canAdd && actionProduct.quantity > 0 ? (
+                  <Pressable
+                    style={styles.stockActionButton}
+                    onPress={() => {
+                      setStockQty("1");
+                      setStockAction("baixar");
+                    }}
+                  >
+                    <Text style={styles.stockActionText}>➖ Baixar (venda)</Text>
+                  </Pressable>
+                ) : null}
+
+                {rolePermissions.canAdd ? (
+                  <Pressable
+                    style={styles.stockActionButton}
+                    onPress={() => {
+                      setStockQty("1");
+                      setStockAction("repor");
+                    }}
+                  >
+                    <Text style={styles.stockActionText}>➕ Repor estoque</Text>
+                  </Pressable>
+                ) : null}
+
                 {rolePermissions.canAdd && actionProduct.imageUrl && !actionProduct.photoCutoutUrl ? (
                   <Pressable style={styles.aiActionButton} onPress={() => processPhotoWithAi(actionProduct)}>
                     <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
@@ -2302,6 +2363,45 @@ export default function HomeScreen() {
                 </Pressable>
               </>
             )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={stockAction !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStockAction(null)}
+      >
+        <Pressable style={styles.actionBackdrop} onPress={() => setStockAction(null)}>
+          <Pressable style={styles.stockSheet} onPress={() => undefined}>
+            <View style={styles.actionHandle} />
+            <Text style={styles.sheetTitle}>
+              {stockAction === "baixar" ? "Baixar estoque" : "Repor estoque"}
+            </Text>
+            <Text style={styles.stockHint}>
+              {actionProduct?.name} · quantidade atual: {actionProduct?.quantity}
+            </Text>
+            <TextInput
+              style={styles.stockInput}
+              keyboardType="number-pad"
+              value={stockQty}
+              onChangeText={(v) => setStockQty(v.replace(/[^0-9]/g, ""))}
+              placeholder="Quantidade"
+            />
+            <Pressable
+              style={[styles.primary, stockBusy && styles.disabled]}
+              onPress={handleStockAction}
+              disabled={stockBusy}
+            >
+              {stockBusy ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.primaryText}>
+                  {stockAction === "baixar" ? "Confirmar baixa" : "Confirmar reposição"}
+                </Text>
+              )}
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -2697,4 +2797,12 @@ const styles = StyleSheet.create({
 
   aiActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#E3F1E9", alignItems: "center", justifyContent: "center", marginBottom: 11 },
   aiActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
+  stockActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#D8E2DB", alignItems: "center", justifyContent: "center", marginBottom: 11 },
+  stockActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
+  stockSheet: { backgroundColor: "#F8FAF7", borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28 },
+  stockHint: { color: "#68766F", fontSize: 12, marginTop: 14, marginBottom: 4 },
+  stockInput: { height: 52, borderWidth: 1, borderColor: "#D3DDD7", borderRadius: 14, backgroundColor: "#FFF", paddingHorizontal: 14, color: "#173F32", fontSize: 18, fontWeight: "800", marginTop: 10, textAlign: "center" },
+  primary: { height: 53, borderRadius: 15, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginTop: 20 },
+  primaryText: { color: "#FFF", fontSize: 15, fontWeight: "900" },
+  disabled: { opacity: 0.65 },
 });
