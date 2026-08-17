@@ -1,4 +1,9 @@
-/** Tela de histórico: apresenta operações de produto registradas no banco. */
+/**
+ * Tela de histórico de produtos (arquivados/vencidos).
+ *
+ * Filtros por texto, setor e período. A exclusão definitiva é controlada por
+ * canDelete (papel admin/owner — RLS também valida no banco).
+ */
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,

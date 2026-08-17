@@ -1,3 +1,17 @@
+/**
+ * Busca de produto por código de barras.
+ *
+ * Ordem de consulta (da mais confiável à mais barata):
+ *   1. Catálogo compartilhado do próprio app (productCatalog) — dados que os
+ *      usuários já contribuíram, com categoria correta.
+ *   2. Cache local de 30 dias — mesma consulta já feita antes fica instantânea.
+ *   3. APIs externas gratuitas em paralelo (Open Food Facts + UPCItemDB),
+ *      cada uma com timeout de 6s para a busca nunca travar.
+ *   4. GTINHub só quando as anteriores não trazem o nome (é mais limitado).
+ *
+ * Qualquer erro de rede é engolido e retorna null — a consulta é opcional,
+ * o usuário pode sempre cadastrar manualmente.
+ */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { lookupCatalogProduct } from "./productCatalog";
 import { ProductCategory } from "./types";

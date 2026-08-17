@@ -1,3 +1,11 @@
+/**
+ * Cache local (AsyncStorage) da lista de produtos.
+ *
+ * O app funciona OFFLINE-FIRST: a lista que o usuário vê vem deste cache e a
+ * nuvem é atualizada em seguida (ver cloudStorage). Este módulo também marca
+ * sincronizações pendentes — quando o usuário adiciona/edit/exclui sem
+ * internet, um flag avisa o app para reenviar assim que reconectar.
+ */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Product } from "./types";
 

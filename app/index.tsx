@@ -1,3 +1,22 @@
+/**
+ * Tela principal do Prazo Certo.
+ *
+ * Concentra: autenticação (estado da sessão), escopo pessoal/grupo,
+ * sincronização offline-first com a nuvem, leitor de código de barras,
+ * cadastro/edição com IA, notificações, geração de PDF e menus.
+ *
+ * Sincronização (núcleo do app):
+ *   1. Cache local (AsyncStorage) é exibido IMEDIATAMENTE — o app abre rápido.
+ *   2. Se há alterações pendentes (offline), envia primeiro para a nuvem.
+ *   3. Puxa a nuvem e atualiza a lista.
+ *   4. Alterações do usuário passam por persist(), que grava local, envia e
+ *      marca pendente se falhar (reenvio ao reconectar).
+ *   5. Realtime (postgres_changes) atualiza a lista quando OUTRO aparelho do
+ *      mesmo grupo altera dados.
+ *
+ * Modo demo (web, "Entrar para testar") usa um usuário sintético e dados
+ * locais apenas — nada vai para a nuvem.
+ */
 import { CameraView, useCameraPermissions } from "expo-camera";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -43,6 +62,8 @@ import { supabase } from "@/supabase";
 import { AppAlert, AlertButton, AlertMessage } from "@/components/AppAlert";
 import { uploadAvatar } from "@/avatar";
 
+// Limite de tempo para operações de rede: o Supabase no plano Free hiberna e
+// a primeira chamada pode demorar; sem isso a tela travaria para sempre.
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("timeout")), ms);
@@ -221,6 +242,7 @@ export default function HomeScreen() {
     };
   }, [session?.user.id]);
 
+  // Sincronização inicial da lista: cache local -> pendentes -> nuvem.
   useEffect(() => {
     if (!session?.user.id) {
       setProducts([]);
@@ -318,6 +340,7 @@ export default function HomeScreen() {
     };
   }, [session?.user.id, company?.id]);
 
+  // Realtime: reflete alterações de OUTROS aparelhos do mesmo grupo.
   useEffect(() => {
     if (!session?.user.id || isDemo) return;
 
@@ -476,6 +499,9 @@ export default function HomeScreen() {
     );
   }
 
+  // Ponto único de escrita da lista: atualiza o estado, grava o cache local e
+  // espelha na nuvem. Em falha de rede, marca sincronização pendente (o app
+  // reenvia ao reconectar — ver syncPendingChanges e AppState).
   async function persist(next: Product[]) {
     setProducts(next);
     if (!session?.user.id) return;
@@ -499,7 +525,7 @@ export default function HomeScreen() {
     }
   }
 
-  // Envia para a nuvem os produtos salvos no celular enquanto estava offline.
+  // Reenvio automático: produtos salvos no celular enquanto estava offline.
   async function syncPendingChanges() {
     if (!session?.user.id || isDemo) return;
     const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
@@ -606,6 +632,8 @@ export default function HomeScreen() {
     setBarcode(normalized);
   }
 
+  // Fluxo completo de leitura: normaliza o código, verifica duplicidade na
+  // lista, busca dados em fontes externas e abre o cadastro (manual ou IA).
   async function onBarcodeScanned(value: string) {
     const normalized = normalizeBarcode(value);
     if (!normalized) {
@@ -706,6 +734,8 @@ export default function HomeScreen() {
     await analyzePhoto(await compressImageForUpload(uri), code);
   }
 
+  // Cadastro assistido por IA: envia a foto à Edge Function, preenche o
+  // formulário com o resultado e alerta duplicidade (similarity >= 85).
   async function analyzePhoto(uri: string, code?: string) {
     if (aiProcessing) return;
     setAiProcessing(true);
@@ -760,7 +790,8 @@ export default function HomeScreen() {
     }
   }
 
-  // Re-processa produtos ainda sem fundo removido: na abertura e a cada 90s.
+  // Remoção de fundo em segundo plano: enfileira produtos ainda sem
+  // photoCutoutUrl e os reprocessa a cada 90s até conseguir.
   useEffect(() => {
     if (!session?.user.id || loading) return;
     for (const item of products) {
@@ -900,6 +931,9 @@ export default function HomeScreen() {
     }
   }
 
+  // Cadastro/edição de produto. Valida dados, agenda notificações, contribui
+  // ao catálogo compartilhado (quando tem código e foto), salva via persist()
+  // e dispara a remoção de fundo em segundo plano quando aplicável.
   async function saveProduct() {
     const parsedDate = parseBrazilianDate(expiry);
     const numericQuantity = Number(quantity);
@@ -1055,6 +1089,7 @@ export default function HomeScreen() {
   }
 
 
+  // Marca/desmarca "rebaixa aprovada" em lote (seleção múltipla).
   async function markSelectedRebaixa() {
     const selected = products.filter((product) => selectedIds.has(product.id));
     if (!selected.length) return;
@@ -1092,6 +1127,7 @@ export default function HomeScreen() {
       ],
     );
   }
+  // Remoção em lote dos itens selecionados (com cancelamento das notificações).
   async function removeSelectedProducts() {
     if (removingSelected) return;
     showAlert(
@@ -1159,6 +1195,9 @@ export default function HomeScreen() {
     });
   }
 
+  // Gera um PDF (via HTML em expo-print) com os produtos selecionados,
+  // agrupados por categoria e com situação de validade. Na web usa o diálogo
+  // de impressão do navegador; no mobile gera arquivo e abre o compartilhar.
   async function generateSelectedPdf() {
     const selected = sorted.filter((product) => selectedIds.has(product.id));
     if (!selected.length) {
@@ -1279,6 +1318,8 @@ export default function HomeScreen() {
     }
   }
 
+  // Modo demo (web): gera uma lista de exemplo com validades variadas
+  // (incluindo vencido) para quem clica em "Entrar para testar".
   async function buildTestProducts(currentProducts: Product[]) {
     const productPool: Array<{
       name: string;

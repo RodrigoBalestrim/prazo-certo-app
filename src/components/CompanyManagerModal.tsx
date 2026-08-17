@@ -1,4 +1,11 @@
-/** Modal de gestão de grupo, participantes e cargos. */
+/**
+ * Modal de gestão de grupo (aberto por quem tem permissão owner/admin/manager).
+ *
+ * Ações: listar participantes, alterar cargo, ativar/desativar membro,
+ * remover membro, editar dados/logo do grupo e compartilhar o código de
+ * convite. Todas as operações vão por RPC do Supabase (company.ts) — o banco
+ * revalida a permissão; a UI aqui só decide o que mostrar pelo cargo.
+ */
 import { useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
