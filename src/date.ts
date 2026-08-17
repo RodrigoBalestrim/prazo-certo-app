@@ -1,3 +1,15 @@
+/**
+ * Utilitários de data.
+ *
+ * Datas de validade são SEM hora: o domínio trabalha com o dia, não com um
+ * instante. Por isso:
+ * - parse/format usam horário fixo (09h/12h) só para o fuso local do
+ *   aparelho não "deslocar" o dia para o anterior/posterior.
+ * - daysUntil compara à meia-noite local, mantendo o cálculo estável.
+ * - Tudo produz/consome ISO "YYYY-MM-DD" (sem timezone), exceto onde o
+ *   app precisa de um Date para agendar notificação.
+ */
+
 export function parseBrazilianDate(value: string): Date | null {
   const match = value.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;

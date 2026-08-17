@@ -1,8 +1,18 @@
-// Chave estável para leitura de código de barras.
-//
-// Produto de peso variável (balança de varejo) imprime EAN-13 que muda a cada
-// pesagem: 2|123456|01500|8 -> "2" + código interno (6 dígitos) + peso em
-// gramas (5 dígitos) + dígito verificador. A parte fixa é prefixo + código.
+/**
+ * Normalização de código de barras.
+ *
+ * O objetivo é transformar o que a câmera lê numa CHAVE ESTÁVEL: o mesmo
+ * produto físico deve sempre gerar o mesmo código, mesmo que a etiqueta
+ * varie. Casos tratados:
+ * - UPC-A (12 dígitos) -> vira o EAN-13 equivalente (mesmas barras).
+ * - Produto de peso variável (balança de varejo) imprime EAN-13 que muda a
+ *   cada pesagem: 2|123456|01500|8 -> prefixo "2" + código interno (6
+ *   dígitos) + peso/preço (5 dígitos) + dígito verificador. Guardamos só a
+ *   parte fixa (prefixo + código interno).
+ * - Código numérico é validado contra o dígito verificador (EAN).
+ * - Códigos não numéricos (Code128/QR) não têm peso variável nem check digit:
+ *   o valor cru já é a identidade.
+ */
 export function normalizeBarcode(value: string): string | null {
   const code = value.trim();
   // Code128/QR e afins não numéricos não têm peso variável nem check digit:

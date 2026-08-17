@@ -1,3 +1,16 @@
+/**
+ * Tela de retorno do login OAuth (Google).
+ *
+ * O navegador redireciona para um deep link com access_token/refresh_token
+ * (ou code). Esta tela consome esse retorno e cria a sessão no Supabase.
+ * Pontos de robustez:
+ * - Se a sessão já existe (AuthScreen também processa o retorno), navega
+ *   direto para não ficar preso.
+ * - Timeout de 15s: se o deep link não chegar, mostra erro em vez de travar
+ *   para sempre.
+ * - Timeout de 20s na troca de código: o plano Free do Supabase hiberna e a
+ *   primeira chamada pode demorar.
+ */
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 import * as Linking from "expo-linking";
