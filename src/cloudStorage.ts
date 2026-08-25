@@ -28,6 +28,7 @@ type ProductRow = {
   preco_cents: number | null;
   expires_at: string;
   quantity: number;
+  lot: string | null;
   notes: string | null;
   archived: boolean | null;
   archived_at: string | null;
@@ -48,9 +49,9 @@ function fromRow(row: ProductRow): Product {
     packagingType: row.packaging_type || undefined,
     category: row.category || "Mercearia",
     barcode: row.barcode,
-    precoCents: row.preco_cents ?? undefined,
     expiresAt: row.expires_at,
     quantity: row.quantity,
+    lot: row.lot || undefined,
     notes: row.notes || undefined,
     archived: Boolean(row.archived),
     archivedAt: row.archived_at || undefined,
@@ -75,9 +76,9 @@ function toRow(userId: string, organizationId: string | null, product: Product):
     packaging_type: product.packagingType || null,
     category: product.category || "Mercearia",
     barcode: product.barcode,
-    preco_cents: product.precoCents ?? null,
     expires_at: product.expiresAt,
     quantity: product.quantity,
+    lot: product.lot || null,
     notes: product.notes || null,
     archived: product.archived || false,
     archived_at: product.archivedAt || null,
@@ -239,6 +240,7 @@ export async function updateCloudProduct(
   const { error } = await query;
   if (error) throw error;
 }
+
 // Fotos base64 gravadas no banco (produtos sem codigo de barras ou com
 // recorte) sao migradas para o Storage. Reduz o payload do login.
 export async function migrateBase64Images(

@@ -30,9 +30,9 @@ export type Product = {
   packagingType?: string;
   category?: ProductCategory;
   barcode: string;
-  precoCents?: number;
   expiresAt: string;
   quantity: number;
+  lot?: string;
   notes?: string;
   archived?: boolean;
   archivedAt?: string;

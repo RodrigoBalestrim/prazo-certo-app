@@ -96,7 +96,7 @@ export default function HomeScreen() {
   const cutoutRunningRef = useRef<Set<string>>(new Set());
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [price, setPrice] = useState("");
+  const [lot, setLot] = useState("");
   const [category, setCategory] = useState<ProductCategory>("Mercearia");
   const [notes, setNotes] = useState("");
   const [brand, setBrand] = useState("");
@@ -598,7 +598,7 @@ export default function HomeScreen() {
     setBarcode("");
     setExpiry("");
     setQuantity("1");
-    setPrice("");
+    setLot("");
     setCategory("Mercearia");
     setNotes("");
     setBrand("");
@@ -965,14 +965,6 @@ export default function HomeScreen() {
       return;
     }
 
-    // preço opcional: "1,99" ou "1.99" → centavos (199)
-    const priceText = price.trim().replace(",", ".");
-    const numericPrice = priceText ? Math.round(parseFloat(priceText) * 100) : null;
-    if (priceText && (!Number.isFinite(numericPrice) || numericPrice! < 0)) {
-      showAlert("Preço inválido", "Informe um valor válido (ex.: 1,99).");
-      return;
-    }
-
     const expiresAt = dateToIso(parsedDate);
 
     const existing = editingId
@@ -1018,9 +1010,10 @@ export default function HomeScreen() {
       packagingType: packagingType.trim() || existing?.packagingType || undefined,
       category,
       barcode: barcode.trim(),
-      precoCents: numericPrice ?? undefined,
+
       expiresAt,
       quantity: numericQuantity,
+      lot: lot.trim() || undefined,
       notes: notes.trim() || undefined,
       rebaixaAprovada: editingId ? rebaixaApproved : false,
       rebaixaData: editingId && rebaixaApproved ? (existing?.rebaixaData || new Date().toISOString()) : undefined,
@@ -1065,7 +1058,7 @@ export default function HomeScreen() {
     setBarcode(product.barcode);
     setExpiry(formatBrazilianDate(product.expiresAt));
     setQuantity(String(product.quantity));
-    setPrice(product.precoCents != null ? (product.precoCents / 100).toFixed(2).replace(".", ",") : "");
+    setLot(product.lot || "");
     setCategory(product.category || "Mercearia");
     setNotes(product.notes || "");
     setRebaixaApproved(Boolean(product.rebaixaAprovada));
@@ -2549,15 +2542,9 @@ export default function HomeScreen() {
                 <Text style={styles.label}>Quantidade</Text>
                 <TextInput style={styles.inputSolo} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Preço (R$)</Text>
-                <TextInput
-                  style={styles.inputSolo}
-                  value={price}
-                  onChangeText={(value) => setPrice(value.replace(/[^0-9.,]/g, ""))}
-                  keyboardType="decimal-pad"
-                  placeholder="0,00"
-                />
+              <View style={{ flex: 2 }}>
+                <Text style={styles.label}>Lote</Text>
+                <TextInput style={styles.inputSolo} value={lot} onChangeText={setLot} placeholder="Ex.: L2408" />
               </View>
             </View>
 
