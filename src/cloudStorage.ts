@@ -25,7 +25,6 @@ type ProductRow = {
   packaging_type: string | null;
   category: Product["category"] | null;
   barcode: string;
-  preco_cents: number | null;
   expires_at: string;
   quantity: number;
   lot: string | null;
