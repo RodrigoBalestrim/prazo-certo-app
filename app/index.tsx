@@ -2527,8 +2527,8 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
             <View style={styles.row}>
-              <View style={{ flex: 3 }}>
-                <Text style={styles.label}>Data de validade</Text>
+              <View style={{ flex: 2.4 }}>
+                <Text style={styles.label}>Validade</Text>
                 <TextInput
                   style={[styles.inputSolo, styles.expiryInput]}
                   value={expiry}
