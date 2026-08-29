@@ -37,3 +37,6 @@ android/
 n8n/.env
 n8n/.expiry-alerts-secret
 .vercel
+
+# Chave de assinatura
+debug.keystore
