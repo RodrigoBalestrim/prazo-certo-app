@@ -1,3 +1,14 @@
+/**
+ * Camada de persistência em nuvem (Supabase) dos produtos.
+ *
+ * Regras que o resto do app depende de manter:
+ * - A LISTA é fonte de verdade em cada aparelho (AsyncStorage). Este módulo
+ *   apenas espelha ela na nuvem; nunca apaga por diferença contra a lista.
+ * - Toda operação filtra por user_id/group (ou delega à RLS) para nunca
+ *   tocar em dados de outro usuário.
+ * - Operações que podem conflitar com edição em segundo plano usam escrita
+ *   por id (updateCloudProduct), nunca substituição da lista inteira.
+ */
 import { supabase } from "./supabase";
 import { Product } from "./types";
 
@@ -16,6 +27,7 @@ type ProductRow = {
   barcode: string;
   expires_at: string;
   quantity: number;
+  lot: string | null;
   notes: string | null;
   archived: boolean | null;
   archived_at: string | null;
@@ -38,6 +50,7 @@ function fromRow(row: ProductRow): Product {
     barcode: row.barcode,
     expiresAt: row.expires_at,
     quantity: row.quantity,
+    lot: row.lot || undefined,
     notes: row.notes || undefined,
     archived: Boolean(row.archived),
     archivedAt: row.archived_at || undefined,
@@ -64,6 +77,7 @@ function toRow(userId: string, organizationId: string | null, product: Product):
     barcode: product.barcode,
     expires_at: product.expiresAt,
     quantity: product.quantity,
+    lot: product.lot || null,
     notes: product.notes || null,
     archived: product.archived || false,
     archived_at: product.archivedAt || null,
@@ -150,6 +164,59 @@ export async function deleteCloudProducts(
   if (error) throw error;
 }
 
+/** Resultado agregado do dashboard de perda (valores em centavos). */
+export type PerdaEstimada = {
+  vencidosCentavos: number;
+  vencendoCentavos: number;
+  vencidosItens: number;
+  vencendoItens: number;
+};
+
+/** Busca a perda estimada (vencidos + vencendo) para o escopo atual. */
+export async function carregarPerdaEstimada(dias = 7): Promise<PerdaEstimada> {
+  const { data, error } = await supabase.rpc("perda_estimada", { p_dias: dias });
+  if (error) throw error;
+  const row = (data ?? [])[0] ?? {};
+  return {
+    vencidosCentavos: Number(row.vencidos_centavos ?? 0),
+    vencendoCentavos: Number(row.vencendo_centavos ?? 0),
+    vencidosItens: Number(row.vencidos_itens ?? 0),
+    vencendoItens: Number(row.vencendo_itens ?? 0),
+  };
+}
+
+/**
+ * Baixa de estoque (venda). Chama a RPC baixar_estoque, que respeita PEPS
+ * (primeiro a vencer, primeiro a sair) e bloqueia lote vencido.
+ * Retorna a quantidade efetivamente baixada.
+ */
+export async function baixarEstoque(productId: string, quantity: number): Promise<number> {
+  const { data, error } = await supabase.rpc("baixar_estoque", {
+    p_product_id: productId,
+    p_quantity: quantity,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+/**
+ * Reposição de estoque. Adiciona um NOVO lote (ou soma no existente de mesmo
+ * recebimento+validade) e atualiza o saldo do produto.
+ */
+export async function reporEstoque(
+  productId: string,
+  quantity: number,
+  expiresAt: string, // ISO "YYYY-MM-DD"
+): Promise<number> {
+  const { data, error } = await supabase.rpc("repor_estoque", {
+    p_product_id: productId,
+    p_quantity: quantity,
+    p_expires_at: expiresAt,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
 // Atualiza apenas UM produto na nuvem (não substitui a lista inteira).
 // Usado pelo processamento de fundo em segundo plano — evita apagar
 // produtos adicionados/editados enquanto o processo roda.
@@ -158,16 +225,21 @@ export async function updateCloudProduct(
   organizationId: string | null,
   product: Product,
 ): Promise<void> {
+  // O dono do registro pode divergir do usuário atual em lista compartilhada
+  // (o item foi criado por outro membro do grupo), então não fixamos o
+  // user_id no corpo — a RLS valida a permissão de escrita no banco.
   const row = toRow(userId, organizationId, product);
-    if (organizationId) {
+  if (organizationId) {
     delete (row as { user_id?: string }).user_id;
-    query = query.eq("organization_id", organizationId);
-  } else {
-    query = query.eq("user_id", userId).is("organization_id", null);
   }
+  let query = supabase.from("products").update(row).eq("id", product.id);
+  query = organizationId
+    ? query.eq("organization_id", organizationId)
+    : query.eq("user_id", userId).is("organization_id", null);
   const { error } = await query;
   if (error) throw error;
 }
+
 // Fotos base64 gravadas no banco (produtos sem codigo de barras ou com
 // recorte) sao migradas para o Storage. Reduz o payload do login.
 export async function migrateBase64Images(

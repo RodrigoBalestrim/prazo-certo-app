@@ -1,3 +1,22 @@
+/**
+ * Tela principal do Prazo Certo.
+ *
+ * Concentra: autenticação (estado da sessão), escopo pessoal/grupo,
+ * sincronização offline-first com a nuvem, leitor de código de barras,
+ * cadastro/edição com IA, notificações, geração de PDF e menus.
+ *
+ * Sincronização (núcleo do app):
+ *   1. Cache local (AsyncStorage) é exibido IMEDIATAMENTE — o app abre rápido.
+ *   2. Se há alterações pendentes (offline), envia primeiro para a nuvem.
+ *   3. Puxa a nuvem e atualiza a lista.
+ *   4. Alterações do usuário passam por persist(), que grava local, envia e
+ *      marca pendente se falhar (reenvio ao reconectar).
+ *   5. Realtime (postgres_changes) atualiza a lista quando OUTRO aparelho do
+ *      mesmo grupo altera dados.
+ *
+ * Modo demo (web, "Entrar para testar") usa um usuário sintético e dados
+ * locais apenas — nada vai para a nuvem.
+ */
 import { CameraView, useCameraPermissions } from "expo-camera";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -34,7 +53,7 @@ import { AuthScreen } from "@/components/AuthScreen";
 import { CompanyScreen } from "@/components/CompanyScreen";
 import { CompanyManagerModal } from "@/components/CompanyManagerModal";
 import { HistoryScreen } from "@/components/HistoryScreen";
-import { deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, replaceCloudProducts, updateCloudProduct } from "@/cloudStorage";
+import { baixarEstoque, carregarPerdaEstimada, deleteCloudProducts, loadCloudArchivedProducts, loadCloudProducts, migrateBase64Images, PerdaEstimada, replaceCloudProducts, reporEstoque, updateCloudProduct } from "@/cloudStorage";
 import { CompanyMembership, canAddProducts, canDeleteProducts, canManageCompany, leaveCompany, loadMyCompanies, loadMyCompany } from "@/company";
 import { analyzeProductWithAi, existingProductNames, recordImageHistory } from "@/aiProduct";
 import { normalizeBarcode } from "@/barcode";
@@ -43,6 +62,8 @@ import { supabase } from "@/supabase";
 import { AppAlert, AlertButton, AlertMessage } from "@/components/AppAlert";
 import { uploadAvatar } from "@/avatar";
 
+// Limite de tempo para operações de rede: o Supabase no plano Free hiberna e
+// a primeira chamada pode demorar; sem isso a tela travaria para sempre.
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("timeout")), ms);
@@ -75,6 +96,7 @@ export default function HomeScreen() {
   const cutoutRunningRef = useRef<Set<string>>(new Set());
   const [expiry, setExpiry] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [lot, setLot] = useState("");
   const [category, setCategory] = useState<ProductCategory>("Mercearia");
   const [notes, setNotes] = useState("");
   const [brand, setBrand] = useState("");
@@ -93,6 +115,10 @@ export default function HomeScreen() {
   const [removingSelected, setRemovingSelected] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [actionProduct, setActionProduct] = useState<Product | null>(null);
+  // Modal numérico para baixa/reposição de estoque
+  const [stockAction, setStockAction] = useState<"baixar" | "repor" | null>(null);
+  const [stockQty, setStockQty] = useState("");
+  const [stockBusy, setStockBusy] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [companyManagerOpen, setCompanyManagerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -100,6 +126,8 @@ export default function HomeScreen() {
   const [companySetupMode, setCompanySetupMode] = useState<"create" | "join">("create");
   const [menuScreen, setMenuScreen] = useState<"profile" | "notifications" | "reports" | "help" | null>(null);
   const [alert, setAlert] = useState<AlertMessage | null>(null);
+  const [perda, setPerda] = useState<PerdaEstimada | null>(null);
+  const [perdaLoading, setPerdaLoading] = useState(false);
 
   function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
     setAlert({ title, message, buttons });
@@ -221,6 +249,7 @@ export default function HomeScreen() {
     };
   }, [session?.user.id]);
 
+  // Sincronização inicial da lista: cache local -> pendentes -> nuvem.
   useEffect(() => {
     if (!session?.user.id) {
       setProducts([]);
@@ -318,6 +347,7 @@ export default function HomeScreen() {
     };
   }, [session?.user.id, company?.id]);
 
+  // Realtime: reflete alterações de OUTROS aparelhos do mesmo grupo.
   useEffect(() => {
     if (!session?.user.id || isDemo) return;
 
@@ -375,6 +405,13 @@ export default function HomeScreen() {
     if (screen === "profile") {
       setProfileNameDraft(profileName);
       setProfilePhotoDraft(profilePhoto);
+    }
+    if (screen === "reports") {
+      setPerdaLoading(true);
+      carregarPerdaEstimada(7)
+        .then(setPerda)
+        .catch(() => setPerda(null))
+        .finally(() => setPerdaLoading(false));
     }
     setMenuScreen(screen);
   }
@@ -476,6 +513,9 @@ export default function HomeScreen() {
     );
   }
 
+  // Ponto único de escrita da lista: atualiza o estado, grava o cache local e
+  // espelha na nuvem. Em falha de rede, marca sincronização pendente (o app
+  // reenvia ao reconectar — ver syncPendingChanges e AppState).
   async function persist(next: Product[]) {
     setProducts(next);
     if (!session?.user.id) return;
@@ -499,7 +539,7 @@ export default function HomeScreen() {
     }
   }
 
-  // Envia para a nuvem os produtos salvos no celular enquanto estava offline.
+  // Reenvio automático: produtos salvos no celular enquanto estava offline.
   async function syncPendingChanges() {
     if (!session?.user.id || isDemo) return;
     const scopeKey = `${session.user.id}/${company?.id ?? "personal"}`;
@@ -558,6 +598,7 @@ export default function HomeScreen() {
     setBarcode("");
     setExpiry("");
     setQuantity("1");
+    setLot("");
     setCategory("Mercearia");
     setNotes("");
     setBrand("");
@@ -606,6 +647,8 @@ export default function HomeScreen() {
     setBarcode(normalized);
   }
 
+  // Fluxo completo de leitura: normaliza o código, verifica duplicidade na
+  // lista, busca dados em fontes externas e abre o cadastro (manual ou IA).
   async function onBarcodeScanned(value: string) {
     const normalized = normalizeBarcode(value);
     if (!normalized) {
@@ -706,6 +749,8 @@ export default function HomeScreen() {
     await analyzePhoto(await compressImageForUpload(uri), code);
   }
 
+  // Cadastro assistido por IA: envia a foto à Edge Function, preenche o
+  // formulário com o resultado e alerta duplicidade (similarity >= 85).
   async function analyzePhoto(uri: string, code?: string) {
     if (aiProcessing) return;
     setAiProcessing(true);
@@ -760,7 +805,8 @@ export default function HomeScreen() {
     }
   }
 
-  // Re-processa produtos ainda sem fundo removido: na abertura e a cada 90s.
+  // Remoção de fundo em segundo plano: enfileira produtos ainda sem
+  // photoCutoutUrl e os reprocessa a cada 90s até conseguir.
   useEffect(() => {
     if (!session?.user.id || loading) return;
     for (const item of products) {
@@ -900,6 +946,9 @@ export default function HomeScreen() {
     }
   }
 
+  // Cadastro/edição de produto. Valida dados, agenda notificações, contribui
+  // ao catálogo compartilhado (quando tem código e foto), salva via persist()
+  // e dispara a remoção de fundo em segundo plano quando aplicável.
   async function saveProduct() {
     const parsedDate = parseBrazilianDate(expiry);
     const numericQuantity = Number(quantity);
@@ -961,8 +1010,10 @@ export default function HomeScreen() {
       packagingType: packagingType.trim() || existing?.packagingType || undefined,
       category,
       barcode: barcode.trim(),
+
       expiresAt,
       quantity: numericQuantity,
+      lot: lot.trim() || undefined,
       notes: notes.trim() || undefined,
       rebaixaAprovada: editingId ? rebaixaApproved : false,
       rebaixaData: editingId && rebaixaApproved ? (existing?.rebaixaData || new Date().toISOString()) : undefined,
@@ -1007,6 +1058,7 @@ export default function HomeScreen() {
     setBarcode(product.barcode);
     setExpiry(formatBrazilianDate(product.expiresAt));
     setQuantity(String(product.quantity));
+    setLot(product.lot || "");
     setCategory(product.category || "Mercearia");
     setNotes(product.notes || "");
     setRebaixaApproved(Boolean(product.rebaixaAprovada));
@@ -1022,6 +1074,39 @@ export default function HomeScreen() {
 
     await persist(products.filter((item) => item.id !== product.id));
     setActionProduct(null);
+  }
+
+  // Baixa de estoque (venda): chama a RPC PEPS e atualiza a lista local.
+  async function handleStockAction() {
+    if (!stockAction || !actionProduct || stockBusy) return;
+    const qty = Number(stockQty);
+    if (!Number.isInteger(qty) || qty < 1) {
+      showAlert("Quantidade inválida", "Informe um número inteiro maior que zero.");
+      return;
+    }
+    setStockBusy(true);
+    try {
+      const updated = { ...actionProduct };
+      if (stockAction === "baixar") {
+        const baixado = await baixarEstoque(actionProduct.id, qty);
+        updated.quantity = Math.max(0, actionProduct.quantity - baixado);
+      } else {
+        await reporEstoque(actionProduct.id, qty, actionProduct.expiresAt);
+        updated.quantity = actionProduct.quantity + qty;
+      }
+      // persist atualiza local + nuvem com a nova quantidade
+      await persist(products.map((item) => (item.id === updated.id ? updated : item)));
+      setStockQty("");
+      setStockAction(null);
+      setActionProduct(null);
+    } catch (error) {
+      showAlert(
+        stockAction === "baixar" ? "Não foi possível baixar" : "Não foi possível repor",
+        error instanceof Error ? error.message : "Tente novamente.",
+      );
+    } finally {
+      setStockBusy(false);
+    }
   }
 
   function toggleProductSelection(id: string) {
@@ -1055,6 +1140,7 @@ export default function HomeScreen() {
   }
 
 
+  // Marca/desmarca "rebaixa aprovada" em lote (seleção múltipla).
   async function markSelectedRebaixa() {
     const selected = products.filter((product) => selectedIds.has(product.id));
     if (!selected.length) return;
@@ -1092,6 +1178,7 @@ export default function HomeScreen() {
       ],
     );
   }
+  // Remoção em lote dos itens selecionados (com cancelamento das notificações).
   async function removeSelectedProducts() {
     if (removingSelected) return;
     showAlert(
@@ -1159,6 +1246,9 @@ export default function HomeScreen() {
     });
   }
 
+  // Gera um PDF (via HTML em expo-print) com os produtos selecionados,
+  // agrupados por categoria e com situação de validade. Na web usa o diálogo
+  // de impressão do navegador; no mobile gera arquivo e abre o compartilhar.
   async function generateSelectedPdf() {
     const selected = sorted.filter((product) => selectedIds.has(product.id));
     if (!selected.length) {
@@ -1279,6 +1369,8 @@ export default function HomeScreen() {
     }
   }
 
+  // Modo demo (web): gera uma lista de exemplo com validades variadas
+  // (incluindo vencido) para quem clica em "Entrar para testar".
   async function buildTestProducts(currentProducts: Product[]) {
     const productPool: Array<{
       name: string;
@@ -1832,6 +1924,35 @@ export default function HomeScreen() {
                   <Text style={styles.menuScreenDescription}>
                     Visão geral da sua lista atual de produtos.
                   </Text>
+                  <View style={styles.perdaCard}>
+                    <Text style={styles.perdaTitle}>💸 Perda estimada</Text>
+                    {perdaLoading ? (
+                      <ActivityIndicator color="#1E7A55" style={{ marginTop: 10 }} />
+                    ) : perda ? (
+                      <>
+                        <View style={styles.perdaRow}>
+                          <Text style={styles.perdaLabel}>Vencidos</Text>
+                          <Text style={styles.perdaValue}>
+                            {perda.vencidosItens > 0
+                              ? `R$ ${(perda.vencidosCentavos / 100).toFixed(2)} (${perda.vencidosItens} item${perda.vencidosItens === 1 ? "" : "s"})`
+                              : "R$ 0,00"}
+                          </Text>
+                        </View>
+                        <View style={styles.perdaRow}>
+                          <Text style={styles.perdaLabel}>Vencendo em 7 dias</Text>
+                          <Text style={[styles.perdaValue, styles.perdaWarn]}>
+                            {perda.vencendoItens > 0
+                              ? `R$ ${(perda.vencendoCentavos / 100).toFixed(2)} (${perda.vencendoItens} item${perda.vencendoItens === 1 ? "" : "s"})`
+                              : "R$ 0,00"}
+                          </Text>
+                        </View>
+                      </>
+                    ) : (
+                      <Text style={styles.perdaEmpty}>
+                        Cadastre o preço dos produtos para ver a perda em R$.
+                      </Text>
+                    )}
+                  </View>
                   <View style={styles.reportHero}>
                     <Text style={styles.reportHeroNumber}>{products.length}</Text>
                     <Text style={styles.reportHeroLabel}>produtos cadastrados</Text>
@@ -2244,6 +2365,30 @@ export default function HomeScreen() {
                   <Text style={styles.editActionArrow}>›</Text>
                 </Pressable>
 
+                {rolePermissions.canAdd && actionProduct.quantity > 0 ? (
+                  <Pressable
+                    style={styles.stockActionButton}
+                    onPress={() => {
+                      setStockQty("1");
+                      setStockAction("baixar");
+                    }}
+                  >
+                    <Text style={styles.stockActionText}>➖ Baixar (venda)</Text>
+                  </Pressable>
+                ) : null}
+
+                {rolePermissions.canAdd ? (
+                  <Pressable
+                    style={styles.stockActionButton}
+                    onPress={() => {
+                      setStockQty("1");
+                      setStockAction("repor");
+                    }}
+                  >
+                    <Text style={styles.stockActionText}>➕ Repor estoque</Text>
+                  </Pressable>
+                ) : null}
+
                 {rolePermissions.canAdd && actionProduct.imageUrl && !actionProduct.photoCutoutUrl ? (
                   <Pressable style={styles.aiActionButton} onPress={() => processPhotoWithAi(actionProduct)}>
                     <Text style={styles.aiActionText}>✨ Processar foto com IA (remover fundo)</Text>
@@ -2261,6 +2406,45 @@ export default function HomeScreen() {
                 </Pressable>
               </>
             )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={stockAction !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStockAction(null)}
+      >
+        <Pressable style={styles.actionBackdrop} onPress={() => setStockAction(null)}>
+          <Pressable style={styles.stockSheet} onPress={() => undefined}>
+            <View style={styles.actionHandle} />
+            <Text style={styles.sheetTitle}>
+              {stockAction === "baixar" ? "Baixar estoque" : "Repor estoque"}
+            </Text>
+            <Text style={styles.stockHint}>
+              {actionProduct?.name} · quantidade atual: {actionProduct?.quantity}
+            </Text>
+            <TextInput
+              style={styles.stockInput}
+              keyboardType="number-pad"
+              value={stockQty}
+              onChangeText={(v) => setStockQty(v.replace(/[^0-9]/g, ""))}
+              placeholder="Quantidade"
+            />
+            <Pressable
+              style={[styles.primary, stockBusy && styles.disabled]}
+              onPress={handleStockAction}
+              disabled={stockBusy}
+            >
+              {stockBusy ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.primaryText}>
+                  {stockAction === "baixar" ? "Confirmar baixa" : "Confirmar reposição"}
+                </Text>
+              )}
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -2343,8 +2527,8 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
             <View style={styles.row}>
-              <View style={{ flex: 3 }}>
-                <Text style={styles.label}>Data de validade</Text>
+              <View style={{ flex: 2.4 }}>
+                <Text style={styles.label}>Validade</Text>
                 <TextInput
                   style={[styles.inputSolo, styles.expiryInput]}
                   value={expiry}
@@ -2357,6 +2541,10 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Quantidade</Text>
                 <TextInput style={styles.inputSolo} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" />
+              </View>
+              <View style={{ flex: 2 }}>
+                <Text style={styles.label}>Lote</Text>
+                <TextInput style={styles.inputSolo} value={lot} onChangeText={setLot} placeholder="Ex.: L2408" />
               </View>
             </View>
 
@@ -2656,4 +2844,19 @@ const styles = StyleSheet.create({
 
   aiActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#E3F1E9", alignItems: "center", justifyContent: "center", marginBottom: 11 },
   aiActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
+  stockActionButton: { minHeight: 52, borderRadius: 14, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#D8E2DB", alignItems: "center", justifyContent: "center", marginBottom: 11 },
+  stockActionText: { color: "#1E7A55", fontSize: 13, fontWeight: "800" },
+  stockSheet: { backgroundColor: "#F8FAF7", borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 28 },
+  stockHint: { color: "#68766F", fontSize: 12, marginTop: 14, marginBottom: 4 },
+  stockInput: { height: 52, borderWidth: 1, borderColor: "#D3DDD7", borderRadius: 14, backgroundColor: "#FFF", paddingHorizontal: 14, color: "#173F32", fontSize: 18, fontWeight: "800", marginTop: 10, textAlign: "center" },
+  primary: { height: 53, borderRadius: 15, backgroundColor: "#1E7A55", alignItems: "center", justifyContent: "center", marginTop: 20 },
+  primaryText: { color: "#FFF", fontSize: 15, fontWeight: "900" },
+  disabled: { opacity: 0.65 },
+  perdaCard: { backgroundColor: "#FFF", borderWidth: 1, borderColor: "#E2E9E4", borderRadius: 16, padding: 16, marginBottom: 14 },
+  perdaTitle: { color: "#193D31", fontSize: 15, fontWeight: "800", marginBottom: 10 },
+  perdaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#EEF2EF" },
+  perdaLabel: { color: "#5E6C65", fontSize: 13 },
+  perdaValue: { color: "#B13B30", fontSize: 14, fontWeight: "800" },
+  perdaWarn: { color: "#B98A1F" },
+  perdaEmpty: { color: "#7C8982", fontSize: 12, marginTop: 6 },
 });
