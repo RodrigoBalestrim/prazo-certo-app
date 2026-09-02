@@ -40,3 +40,6 @@ n8n/.expiry-alerts-secret
 
 # Chave de assinatura
 debug.keystore
+
+# Currículo e dados pessoais (não devem ser versionados)
+curriculo/
